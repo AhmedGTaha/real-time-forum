@@ -30,6 +30,7 @@ func main() {
 
 	mux.HandleFunc("/", app.HomeHandler)
 	mux.HandleFunc("/api/register", app.RegisterHandler)
+	mux.HandleFunc("/api/login", app.LoginHandler)
 
 	fileServer := http.FileServer(http.Dir("static"))
 	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
