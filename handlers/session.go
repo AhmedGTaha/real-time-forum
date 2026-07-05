@@ -96,3 +96,37 @@ func (app *App) GetCurrentUser(r *http.Request) (currentUser, error) {
 
 	return user, nil
 }
+
+func (app *App) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	cookie, err := r.Cookie("session_id")
+	if err == nil {
+		sessionID := strings.TrimSpace(cookie.Value)
+
+		if sessionID != "" {
+			_, _ = app.DB.Exec(`
+				DELETE FROM sessions
+				WHERE id = ?;
+			`, sessionID)
+		}
+	}
+
+	// Clear the session cookie and tells the browser to delete it.
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": "logged out successfully",
+	})
+}
