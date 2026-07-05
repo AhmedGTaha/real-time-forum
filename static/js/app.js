@@ -1,0 +1,1 @@
+console.log("Real Time Forum frontend loaded");
