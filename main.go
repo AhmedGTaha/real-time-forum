@@ -15,7 +15,16 @@ func main() {
 		log.Fatal("failed to open database:", err)
 	}
 	defer db.Close()
-	println("Database connection established.")
+
+	log.Println("Database connected successfully")
+	
+	err = database.CreateTables(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("Database tables created successfully.")
+
 
 	mux := http.NewServeMux()
 
