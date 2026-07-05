@@ -8,8 +8,84 @@
 </head>
 <body>
   <main id="app">
-    <h1>Real Time Forum</h1>
-    <p>Project started successfully.</p>
+    <section class="auth-layout">
+      <div class="card">
+        <h1>Real Time Forum</h1>
+        <p id="auth-status">Checking session...</p>
+
+        <div id="guest-view" class="hidden">
+          <div class="tabs">
+            <button id="show-login-btn" class="tab-btn active">Login</button>
+            <button id="show-register-btn" class="tab-btn">Register</button>
+          </div>
+
+          <form id="login-form" class="form">
+            <h2>Login</h2>
+
+            <label>
+              Nickname or Email
+              <input type="text" id="login-identifier" required>
+            </label>
+
+            <label>
+              Password
+              <input type="password" id="login-password" required>
+            </label>
+
+            <button type="submit">Login</button>
+          </form>
+
+          <form id="register-form" class="form hidden">
+            <h2>Register</h2>
+
+            <label>
+              Nickname
+              <input type="text" id="register-nickname" required>
+            </label>
+
+            <label>
+              Age
+              <input type="number" id="register-age" required>
+            </label>
+
+            <label>
+              Gender
+              <input type="text" id="register-gender" required>
+            </label>
+
+            <label>
+              First Name
+              <input type="text" id="register-first-name" required>
+            </label>
+
+            <label>
+              Last Name
+              <input type="text" id="register-last-name" required>
+            </label>
+
+            <label>
+              Email
+              <input type="email" id="register-email" required>
+            </label>
+
+            <label>
+              Password
+              <input type="password" id="register-password" required>
+            </label>
+
+            <button type="submit">Register</button>
+          </form>
+        </div>
+
+        <div id="user-view" class="hidden">
+          <h2>Welcome, <span id="current-user-nickname"></span></h2>
+          <p>You are logged in.</p>
+          <button id="logout-btn">Logout</button>
+        </div>
+
+        <p id="message"></p>
+      </div>
+    </section>
   </main>
 
   <script src="/static/js/app.js"></script>

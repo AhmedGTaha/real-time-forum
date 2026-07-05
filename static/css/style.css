@@ -10,3 +10,76 @@ body {
   margin: 40px auto;
   padding: 20px;
 }
+
+.auth-layout {
+  display: flex;
+  justify-content: center;
+}
+
+.card {
+  width: 100%;
+  max-width: 500px;
+  background: #1c1c1c;
+  padding: 24px;
+  border-radius: 10px;
+  border: 1px solid #333;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tab-btn {
+  flex: 1;
+  background: #2b2b2b;
+  color: #f5f5f5;
+  border: 1px solid #444;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: #f5f5f5;
+  color: #111;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+input {
+  padding: 10px;
+  border: 1px solid #444;
+  background: #111;
+  color: #f5f5f5;
+  border-radius: 6px;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.error {
+  color: #ff6b6b;
+}
+
+.success {
+  color: #51cf66;
+}
+
+.hidden {
+  display: none;
+}

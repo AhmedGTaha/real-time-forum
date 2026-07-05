@@ -1,1 +1,205 @@
-console.log("Real Time Forum frontend loaded");
+// Grab the HTML elements once, then reuse these variables below.
+const authStatus = document.getElementById("auth-status");
+const guestView = document.getElementById("guest-view");
+const userView = document.getElementById("user-view");
+const message = document.getElementById("message");
+
+const loginForm = document.getElementById("login-form");
+const registerForm = document.getElementById("register-form");
+
+const showLoginBtn = document.getElementById("show-login-btn");
+const showRegisterBtn = document.getElementById("show-register-btn");
+
+const currentUserNickname = document.getElementById("current-user-nickname");
+const logoutBtn = document.getElementById("logout-btn");
+
+// Wire browser events to the functions that handle them.
+showLoginBtn.addEventListener("click", showLoginForm);
+showRegisterBtn.addEventListener("click", showRegisterForm);
+
+loginForm.addEventListener("submit", handleLogin);
+registerForm.addEventListener("submit", handleRegister);
+logoutBtn.addEventListener("click", handleLogout);
+
+// On page load, ask the backend if the browser already has a valid session.
+checkCurrentUser();
+
+// -----------------------------
+// Form switching
+// -----------------------------
+
+function showLoginForm() {
+  loginForm.classList.remove("hidden");
+  registerForm.classList.add("hidden");
+
+  showLoginBtn.classList.add("active");
+  showRegisterBtn.classList.remove("active");
+
+  clearMessage();
+}
+
+function showRegisterForm() {
+  registerForm.classList.remove("hidden");
+  loginForm.classList.add("hidden");
+
+  showRegisterBtn.classList.add("active");
+  showLoginBtn.classList.remove("active");
+
+  clearMessage();
+}
+
+// -----------------------------
+// Session/auth requests
+// -----------------------------
+
+async function checkCurrentUser() {
+  try {
+    // GET /api/me uses the session_id cookie, if the browser has one.
+    const response = await fetch("/api/me");
+
+    if (!response.ok) {
+      showGuestView();
+      return;
+    }
+
+    // response.json() converts the backend JSON response into a JS object.
+    const data = await response.json();
+    showUserView(data.user);
+  } catch (error) {
+    showGuestView();
+  }
+}
+
+async function handleRegister(event) {
+  // Stop the browser from doing a normal page refresh form submit.
+  event.preventDefault();
+
+  // This object will become the JSON request body sent to Go.
+  // The key names match the json tags in handlers/auth.go.
+  const payload = {
+    nickname: inputValue("register-nickname"),
+    age: Number(inputValue("register-age")),
+    gender: inputValue("register-gender"),
+    first_name: inputValue("register-first-name"),
+    last_name: inputValue("register-last-name"),
+    email: inputValue("register-email"),
+    password: inputValue("register-password"),
+  };
+
+  const result = await sendJSON("/api/register", payload);
+
+  if (!result.ok) {
+    showMessage(result.data.error || "Registration failed", true);
+    return;
+  }
+
+  showMessage("Registration successful. You can now login.", false);
+  registerForm.reset();
+  showLoginForm();
+}
+
+async function handleLogin(event) {
+  // Stop the browser from reloading the page.
+  event.preventDefault();
+
+  // This becomes JSON like {"identifier":"ahmed","password":"secret123"}.
+  const payload = {
+    identifier: inputValue("login-identifier"),
+    password: inputValue("login-password"),
+  };
+
+  const result = await sendJSON("/api/login", payload);
+
+  if (!result.ok) {
+    showMessage(result.data.error || "Login failed", true);
+    return;
+  }
+
+  loginForm.reset();
+  await checkCurrentUser();
+}
+
+async function handleLogout() {
+  // Logout does not need a JSON body. The cookie tells the backend which
+  // session to delete.
+  const result = await fetch("/api/logout", {
+    method: "POST",
+  });
+
+  if (!result.ok) {
+    showMessage("Logout failed", true);
+    return;
+  }
+
+  showGuestView();
+  showMessage("Logged out successfully", false);
+}
+
+// -----------------------------
+// JSON helper
+// -----------------------------
+
+async function sendJSON(url, payload) {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        // Tell Go that the request body is JSON.
+        "Content-Type": "application/json",
+      },
+      // JSON.stringify turns a JS object into JSON text for the request body.
+      body: JSON.stringify(payload),
+    });
+
+    // Convert the JSON response from Go back into a JS object.
+    const data = await response.json();
+
+    return {
+      ok: response.ok,
+      data,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      data: {
+        error: "Network error",
+      },
+    };
+  }
+}
+
+// -----------------------------
+// UI helpers
+// -----------------------------
+
+function inputValue(id) {
+  return document.getElementById(id).value;
+}
+
+function showGuestView() {
+  showLoginForm();
+
+  authStatus.textContent = "Please login or register.";
+  guestView.classList.remove("hidden");
+  userView.classList.add("hidden");
+}
+
+function showUserView(user) {
+  authStatus.textContent = "Session active.";
+  currentUserNickname.textContent = user.nickname;
+
+  guestView.classList.add("hidden");
+  userView.classList.remove("hidden");
+
+  clearMessage();
+}
+
+function showMessage(text, isError) {
+  message.textContent = text;
+  message.className = isError ? "error" : "success";
+}
+
+function clearMessage() {
+  message.textContent = "";
+  message.className = "";
+}
