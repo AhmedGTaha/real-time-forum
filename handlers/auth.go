@@ -12,6 +12,8 @@ import (
 )
 
 type registerRequest struct {
+	// The json tags tell Go which JSON field should fill each struct field.
+	// Example: {"first_name":"Ahmed"} becomes req.FirstName.
 	Nickname  string `json:"nickname"`
 	Age       int    `json:"age"`
 	Gender    string `json:"gender"`
@@ -22,17 +24,20 @@ type registerRequest struct {
 }
 
 type registerResponse struct {
+	// These tags control the names used when this struct is sent back as JSON.
 	ID       int64  `json:"id"`
 	Nickname string `json:"nickname"`
 	Message  string `json:"message"`
 }
 
 type loginRequest struct {
+	// The frontend can send a nickname or an email in this one JSON field.
 	Identifier string `json:"identifier"`
 	Password   string `json:"password"`
 }
 
 type loginResponse struct {
+	// This is the JSON shape the browser receives after a successful login.
 	ID       int    `json:"id"`
 	Nickname string `json:"nickname"`
 	Message  string `json:"message"`
@@ -45,14 +50,18 @@ func (app *App) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// req starts as an empty Go struct. readJSON fills it from the request body.
 	var req registerRequest
 
+	// The & means "pass the address of req", so json.Decoder can modify it.
 	err := readJSON(w, r, &req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 
+	// Clean and validate after decoding, because JSON values may contain spaces
+	// or missing/invalid fields.
 	req.clean()
 
 	if err := req.validate(); err != nil {
@@ -102,6 +111,7 @@ func (app *App) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// writeJSON converts this Go struct into a JSON response for the browser.
 	writeJSON(w, http.StatusCreated, registerResponse{
 		ID:       userID,
 		Nickname: req.Nickname,
@@ -116,8 +126,10 @@ func (app *App) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// req will hold the JSON login details sent by the browser.
 	var req loginRequest
 
+	// Decode JSON like {"identifier":"ahmed","password":"secret123"} into req.
 	err := readJSON(w, r, &req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -184,6 +196,7 @@ func (app *App) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
+	// Send a JSON success message after the cookie has been created.
 	writeJSON(w, http.StatusOK, loginResponse{
 		ID:       userID,
 		Nickname: nickname,
@@ -192,6 +205,7 @@ func (app *App) LoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (req *registerRequest) clean() {
+	// Pointer receiver (*) lets this method update the original request struct.
 	req.Nickname = strings.TrimSpace(req.Nickname)
 	req.Gender = strings.TrimSpace(req.Gender)
 	req.FirstName = strings.TrimSpace(req.FirstName)
@@ -236,6 +250,7 @@ func (req registerRequest) validate() error {
 }
 
 func (req *loginRequest) clean() {
+	// Trim spaces so " ahmed " is treated the same as "ahmed".
 	req.Identifier = strings.TrimSpace(req.Identifier)
 	req.Password = strings.TrimSpace(req.Password)
 }
