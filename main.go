@@ -9,27 +9,27 @@ import (
 )
 
 func main() {
-	// That means SQLite will create a file called forum.db in the project root if it does not already exist
 	db, err := database.OpenDB("forum.db")
 	if err != nil {
-		log.Fatal("failed to open database:", err)
+		log.Fatal(err)
 	}
 	defer db.Close()
 
 	log.Println("Database connected successfully")
-	
+
 	err = database.CreateTables(db)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Println("Database tables created successfully.")
+	log.Println("Database tables ready")
 
+	app := handlers.NewApp(db)
 
 	mux := http.NewServeMux()
 
-	// It decides which handler should respond to each URL
-	mux.HandleFunc("/", handlers.HomeHandler)
+	mux.HandleFunc("/", app.HomeHandler)
+	mux.HandleFunc("/api/register", app.RegisterHandler)
 
 	fileServer := http.FileServer(http.Dir("static"))
 	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
