@@ -29,7 +29,10 @@ checkCurrentUser();
 // -----------------------------
 
 function showLoginForm() {
+  // shows the login form
   loginForm.classList.remove("hidden");
+  
+  // hides the register form
   registerForm.classList.add("hidden");
 
   showLoginBtn.classList.add("active");
@@ -39,7 +42,10 @@ function showLoginForm() {
 }
 
 function showRegisterForm() {
+  // shows the register form
   registerForm.classList.remove("hidden");
+
+  // hides the login form
   loginForm.classList.add("hidden");
 
   showRegisterBtn.classList.add("active");
