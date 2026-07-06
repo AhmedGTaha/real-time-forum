@@ -22,7 +22,20 @@ const commentsList = document.getElementById("comments-list");
 const createCommentForm = document.getElementById("create-comment-form");
 const commentContent = document.getElementById("comment-content");
 
+const chatUsersList = document.getElementById("chat-users-list");
+const chatMessages = document.getElementById("chat-messages");
+const chatTitle = document.getElementById("chat-title");
+const chatForm = document.getElementById("chat-form");
+const chatInput = document.getElementById("chat-input");
+
 let selectedPostID = null;
+
+let currentUser = null;
+let selectedChatUserID = null;
+let chatSocket = null;
+let oldestMessageID = null;
+let isLoadingOlderMessages = false;
+let chatScrollTimeout = null;
 
 showLoginBtn.addEventListener("click", showLoginForm);
 showRegisterBtn.addEventListener("click", showRegisterForm);
@@ -37,6 +50,10 @@ postsFeed.addEventListener("click", handlePostsFeedClick);
 closeCommentsBtn.addEventListener("click", closeCommentsPanel);
 createCommentForm.addEventListener("submit", handleCreateComment);
 commentsList.addEventListener("click", handleCommentsListClick);
+
+chatUsersList.addEventListener("click", handleChatUserClick);
+chatForm.addEventListener("submit", handleSendChatMessage);
+chatMessages.addEventListener("scroll", handleChatMessagesScroll);
 
 checkCurrentUser();
 
@@ -402,8 +419,12 @@ function inputValue(id) {
 }
 
 function showGuestView() {
+  currentUser = null;
+
   showLoginForm();
   closeCommentsPanel();
+  closeChatSocket();
+  clearChatState();
 
   authStatus.textContent = "Please login or register.";
   guestView.classList.remove("hidden");
@@ -411,6 +432,8 @@ function showGuestView() {
 }
 
 function showUserView(user) {
+  currentUser = user;
+
   authStatus.textContent = "Session active.";
   currentUserNickname.textContent = user.nickname;
 
@@ -418,7 +441,10 @@ function showUserView(user) {
   userView.classList.remove("hidden");
 
   clearMessage();
+
   loadPosts();
+  loadChatUsers();
+  connectChatSocket();
 }
 
 function showMessage(text, isError) {
@@ -487,4 +513,310 @@ async function toggleCommentLike(commentID) {
   if (selectedPostID) {
     await loadComments(selectedPostID);
   }
+}
+
+async function loadChatUsers() {
+  try {
+    const response = await fetch("/api/chat/users");
+
+    if (!response.ok) {
+      chatUsersList.innerHTML = "<p>Failed to load users.</p>";
+      return;
+    }
+
+    const data = await response.json();
+    renderChatUsers(data.users);
+  } catch (error) {
+    chatUsersList.innerHTML = "<p>Network error while loading users.</p>";
+  }
+}
+
+function renderChatUsers(users) {
+  chatUsersList.innerHTML = "";
+
+  if (!users || users.length === 0) {
+    chatUsersList.innerHTML = "<p>No other users yet.</p>";
+    return;
+  }
+
+  users.forEach((user) => {
+    const userButton = document.createElement("button");
+    userButton.type = "button";
+    userButton.className = "chat-user-btn";
+    userButton.dataset.userId = user.id;
+    userButton.dataset.nickname = user.nickname;
+
+    if (Number(user.id) === selectedChatUserID) {
+      userButton.classList.add("active");
+    }
+
+    const statusClass = user.online ? "online" : "offline";
+    const statusText = user.online ? "Online" : "Offline";
+
+    userButton.innerHTML = `
+      <span>${escapeHTML(user.nickname)}</span>
+      <small class="${statusClass}">${statusText}</small>
+    `;
+
+    chatUsersList.appendChild(userButton);
+  });
+}
+
+async function handleChatUserClick(event) {
+  const userButton = event.target.closest(".chat-user-btn");
+
+  if (!userButton) {
+    return;
+  }
+
+  selectedChatUserID = Number(userButton.dataset.userId);
+  oldestMessageID = null;
+
+  chatTitle.textContent = `Chat with ${userButton.dataset.nickname}`;
+  chatInput.disabled = false;
+  chatForm.querySelector("button").disabled = false;
+  chatInput.value = "";
+
+  await loadChatMessages(selectedChatUserID);
+  await loadChatUsers();
+}
+
+async function loadChatMessages(userID) {
+  chatMessages.innerHTML = "<p>Loading messages...</p>";
+
+  try {
+    const response = await fetch(`/api/chat/messages?user_id=${userID}`);
+
+    if (!response.ok) {
+      chatMessages.innerHTML = "<p>Failed to load messages.</p>";
+      return;
+    }
+
+    const data = await response.json();
+    renderChatMessages(data.messages);
+    scrollChatToBottom();
+  } catch (error) {
+    chatMessages.innerHTML = "<p>Network error while loading messages.</p>";
+  }
+}
+
+function renderChatMessages(messages) {
+  chatMessages.innerHTML = "";
+
+  if (!messages || messages.length === 0) {
+    chatMessages.innerHTML = "<p>No messages yet.</p>";
+    oldestMessageID = null;
+    return;
+  }
+
+  oldestMessageID = messages[0].id;
+
+  messages.forEach((message) => {
+    chatMessages.appendChild(createChatMessageElement(message));
+  });
+}
+
+async function loadOlderChatMessages() {
+  if (!selectedChatUserID || !oldestMessageID || isLoadingOlderMessages) {
+    return;
+  }
+
+  isLoadingOlderMessages = true;
+
+  const oldScrollHeight = chatMessages.scrollHeight;
+
+  try {
+    const response = await fetch(
+      `/api/chat/messages?user_id=${selectedChatUserID}&before_id=${oldestMessageID}`
+    );
+
+    if (!response.ok) {
+      isLoadingOlderMessages = false;
+      return;
+    }
+
+    const data = await response.json();
+
+    if (!data.messages || data.messages.length === 0) {
+      isLoadingOlderMessages = false;
+      return;
+    }
+
+    oldestMessageID = data.messages[0].id;
+
+    data.messages.forEach((message) => {
+      chatMessages.prepend(createChatMessageElement(message));
+    });
+
+    const newScrollHeight = chatMessages.scrollHeight;
+    chatMessages.scrollTop = newScrollHeight - oldScrollHeight;
+  } catch (error) {
+    showMessage("Failed to load older messages", true);
+  }
+
+  isLoadingOlderMessages = false;
+}
+
+function handleChatMessagesScroll() {
+  if (chatScrollTimeout) {
+    clearTimeout(chatScrollTimeout);
+  }
+
+  chatScrollTimeout = setTimeout(() => {
+    if (chatMessages.scrollTop <= 20) {
+      loadOlderChatMessages();
+    }
+  }, 300);
+}
+
+function createChatMessageElement(message) {
+  const messageElement = document.createElement("article");
+  messageElement.className = "chat-message";
+
+  const senderID = Number(message.sender_id);
+  const currentUserID = getCurrentUserID();
+
+  if (senderID === currentUserID) {
+    messageElement.classList.add("own-message");
+  }
+
+  messageElement.innerHTML = `
+    <div class="chat-message-header">
+      <strong>${escapeHTML(message.sender_nickname)}</strong>
+      <span>${escapeHTML(message.created_at)}</span>
+    </div>
+
+    <p>${escapeHTML(message.content)}</p>
+  `;
+
+  return messageElement;
+}
+
+function connectChatSocket() {
+  if (chatSocket && chatSocket.readyState !== WebSocket.CLOSED) {
+    return;
+  }
+
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  chatSocket = new WebSocket(`${protocol}://${window.location.host}/ws/chat`);
+
+  chatSocket.addEventListener("open", () => {
+    loadChatUsers();
+  });
+
+  chatSocket.addEventListener("message", handleChatSocketMessage);
+
+  chatSocket.addEventListener("close", () => {
+    chatSocket = null;
+  });
+
+  chatSocket.addEventListener("error", () => {
+    showMessage("Chat connection error", true);
+  });
+}
+
+function handleChatSocketMessage(event) {
+  const data = JSON.parse(event.data);
+
+  switch (data.type) {
+    case "private_message":
+      handleIncomingPrivateMessage(data.message);
+      break;
+    case "presence":
+      loadChatUsers();
+      break;
+    case "error":
+      showMessage(data.error || "Chat error", true);
+      break;
+  }
+}
+
+function handleIncomingPrivateMessage(message) {
+  loadChatUsers();
+
+  if (!selectedChatUserID) {
+    return;
+  }
+
+  const currentUserID = getCurrentUserID();
+
+  const belongsToOpenChat =
+    Number(message.sender_id) === selectedChatUserID ||
+    Number(message.receiver_id) === selectedChatUserID ||
+    Number(message.sender_id) === currentUserID;
+
+  if (!belongsToOpenChat) {
+    return;
+  }
+
+  const emptyMessage = chatMessages.querySelector("p");
+
+  if (emptyMessage && emptyMessage.textContent === "No messages yet.") {
+    chatMessages.innerHTML = "";
+  }
+
+  chatMessages.appendChild(createChatMessageElement(message));
+
+  if (!oldestMessageID) {
+    oldestMessageID = message.id;
+  }
+
+  scrollChatToBottom();
+}
+
+function handleSendChatMessage(event) {
+  event.preventDefault();
+
+  if (!selectedChatUserID) {
+    showMessage("Select a user first", true);
+    return;
+  }
+
+  const content = chatInput.value.trim();
+
+  if (content === "") {
+    showMessage("Message cannot be empty", true);
+    return;
+  }
+
+  if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+    showMessage("Chat is not connected", true);
+    return;
+  }
+
+  chatSocket.send(JSON.stringify({
+    type: "private_message",
+    receiver_id: selectedChatUserID,
+    content,
+  }));
+
+  chatInput.value = "";
+}
+
+function closeChatSocket() {
+  if (chatSocket) {
+    chatSocket.close();
+    chatSocket = null;
+  }
+}
+
+function clearChatState() {
+  selectedChatUserID = null;
+  oldestMessageID = null;
+  isLoadingOlderMessages = false;
+
+  chatTitle.textContent = "Select a user";
+  chatUsersList.innerHTML = "";
+  chatMessages.innerHTML = "<p>Select a user to start chatting.</p>";
+  chatInput.value = "";
+  chatInput.disabled = true;
+  chatForm.querySelector("button").disabled = true;
+}
+
+function scrollChatToBottom() {
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function getCurrentUserID() {
+  return Number(currentUser?.id || currentUser?.ID || 0);
 }

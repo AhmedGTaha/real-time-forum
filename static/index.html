@@ -82,6 +82,30 @@
           <p>You are logged in.</p>
           <button id="logout-btn" type="button">Logout</button>
 
+          <section class="chat-layout">
+            <section class="card forum-card chat-users">
+              <h3>Private Messages</h3>
+              <div id="chat-users-list"></div>
+            </section>
+
+            <section class="card forum-card chat-box">
+              <h3 id="chat-title">Select a user</h3>
+
+              <div id="chat-messages">
+                <p>Select a user to start chatting.</p>
+              </div>
+
+              <form id="chat-form" class="form">
+                <label>
+                  Message
+                  <textarea id="chat-input" rows="3" disabled required></textarea>
+                </label>
+
+                <button type="submit" disabled>Send</button>
+              </form>
+            </section>
+          </section>
+
           <section class="forum-layout">
             <section class="card forum-card">
               <h3>Create Post</h3>
@@ -136,6 +160,6 @@
     </section>
   </main>
 
-  <script src="/static/js/app.js?v=6"></script>
+  <script src="/static/js/app.js?v=7"></script>
 </body>
 </html>
