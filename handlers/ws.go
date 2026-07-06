@@ -1,10 +1,8 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -219,24 +217,4 @@ func (app *App) createChatMessage(sender currentUser, receiverID int, content st
 	}
 
 	return message, nil
-}
-
-func isNormalWebSocketClose(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	return websocket.IsCloseError(
-		err,
-		websocket.CloseNormalClosure,
-		websocket.CloseGoingAway,
-	)
-}
-
-func waitBeforeClosing() {
-	time.Sleep(100 * time.Millisecond)
-}
-
-func websocketError(message string) error {
-	return errors.New(message)
 }
