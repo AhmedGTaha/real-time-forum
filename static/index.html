@@ -81,6 +81,35 @@
           <h2>Welcome, <span id="current-user-nickname"></span></h2>
           <p>You are logged in.</p>
           <button id="logout-btn">Logout</button>
+          <section class="forum-layout">
+            <section class="card forum-card">
+              <h3>Create Post</h3>
+
+              <form id="create-post-form" class="form">
+                <label>
+                  Title
+                  <input type="text" id="post-title" required>
+                </label>
+
+                <label>
+                  Content
+                  <textarea id="post-content" rows="5" required></textarea>
+                </label>
+
+                <label>
+                  Categories
+                  <input type="text" id="post-categories" placeholder="Example: general, go, school" required>
+                </label>
+
+                <button type="submit">Create Post</button>
+              </form>
+            </section>
+
+            <section class="card forum-card">
+              <h3>Feed</h3>
+              <div id="posts-feed"></div>
+            </section>
+          </section>
         </div>
 
         <p id="message"></p>

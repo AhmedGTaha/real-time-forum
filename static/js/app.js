@@ -21,6 +21,9 @@ loginForm.addEventListener("submit", handleLogin);
 registerForm.addEventListener("submit", handleRegister);
 logoutBtn.addEventListener("click", handleLogout);
 
+const createPostForm = document.getElementById("create-post-form");
+const postsFeed = document.getElementById("posts-feed");
+
 // On page load, ask the backend if the browser already has a valid session.
 checkCurrentUser();
 
@@ -141,6 +144,92 @@ async function handleLogout() {
   showMessage("Logged out successfully", false);
 }
 
+async function handleCreatePost(event) {
+  event.preventDefault();
+
+  const categoriesInput = document.getElementById("post-categories").value;
+
+  const payload = {
+    title: document.getElementById("post-title").value,
+    content: document.getElementById("post-content").value,
+    categories: categoriesInput
+      .split(",")
+      .map((category) => category.trim())
+      .filter((category) => category !== ""),
+  };
+
+  const result = await sendJSON("/api/posts", payload);
+
+  if (!result.ok) {
+    showMessage(result.data.error || "Failed to create post", true);
+    return;
+  }
+
+  createPostForm.reset();
+  showMessage("Post created successfully", false);
+  await loadPosts();
+}
+
+async function loadPosts() {
+  try {
+    const response = await fetch("/api/posts");
+
+    if (!response.ok) {
+      postsFeed.innerHTML = "<p>Failed to load posts.</p>";
+      return;
+    }
+
+    const data = await response.json();
+    renderPosts(data.posts);
+  } catch (error) {
+    postsFeed.innerHTML = "<p>Network error while loading posts.</p>";
+  }
+}
+
+function renderPosts(posts) {
+  postsFeed.innerHTML = "";
+
+  if (!posts || posts.length === 0) {
+    postsFeed.innerHTML = "<p>No posts yet. Create the first one.</p>";
+    return;
+  }
+
+  posts.forEach((post) => {
+    const postElement = document.createElement("article");
+    postElement.className = "post-card";
+
+    postElement.innerHTML = `
+      <div class="post-header">
+        <h4>${escapeHTML(post.title)}</h4>
+        <span>by ${escapeHTML(post.author)}</span>
+      </div>
+
+      <p>${escapeHTML(post.content)}</p>
+
+      <div class="post-categories">
+        ${post.categories.map((category) => `<span>${escapeHTML(category)}</span>`).join("")}
+      </div>
+
+      <div class="post-meta">
+        <span>${post.like_count} likes</span>
+        <span>${post.comment_count} comments</span>
+        <span>${escapeHTML(post.created_at)}</span>
+      </div>
+    `;
+
+    postsFeed.appendChild(postElement);
+  });
+}
+
+function escapeHTML(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 // -----------------------------
 // JSON helper
 // -----------------------------
@@ -198,6 +287,7 @@ function showUserView(user) {
   userView.classList.remove("hidden");
 
   clearMessage();
+  loadPosts();
 }
 
 function showMessage(text, isError) {
