@@ -40,7 +40,7 @@ func (app *App) CommentsHandler(w http.ResponseWriter, r *http.Request) {
 		app.CreateCommentHandler(w, r)
 	default:
 		w.Header().Set("Allow", "GET, POST")
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		writeError(w, http.StatusMethodNotAllowed, "use GET to list comments or POST to create a comment")
 	}
 }
 
@@ -48,7 +48,7 @@ func (app *App) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	// Creating a comment requires a logged-in user, because every comment needs an author.
 	user, err := app.GetCurrentUser(r)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "not logged in")
+		writeError(w, http.StatusUnauthorized, "please log in to add a comment")
 		return
 	}
 
@@ -58,7 +58,7 @@ func (app *App) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	// The & means "pass the address", so readJSON can fill req.
 	err = readJSON(w, r, &req)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		writeError(w, http.StatusBadRequest, "request body must be valid JSON with post_id and content")
 		return
 	}
 
@@ -73,12 +73,12 @@ func (app *App) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	// Make sure the comment is attached to a real post before inserting it.
 	exists, err := app.postExists(req.PostID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to check post")
+		writeError(w, http.StatusInternalServerError, "could not check whether the post exists")
 		return
 	}
 
 	if !exists {
-		writeError(w, http.StatusNotFound, "post not found")
+		writeError(w, http.StatusNotFound, "cannot add a comment because the post was not found")
 		return
 	}
 
@@ -88,14 +88,14 @@ func (app *App) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 		VALUES (?, ?, ?);
 	`, req.PostID, user.ID, req.Content)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to create comment")
+		writeError(w, http.StatusInternalServerError, "could not save the comment")
 		return
 	}
 
 	// LastInsertId reads the id SQLite created for the new comment.
 	commentID, err := result.LastInsertId()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to read comment id")
+		writeError(w, http.StatusInternalServerError, "comment was saved, but the new comment id could not be read")
 		return
 	}
 
@@ -110,7 +110,7 @@ func (app *App) ListCommentsHandler(w http.ResponseWriter, r *http.Request) {
 	// Only logged-in users can load comments.
 	_, err := app.GetCurrentUser(r)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "not logged in")
+		writeError(w, http.StatusUnauthorized, "please log in to view comments")
 		return
 	}
 
@@ -118,7 +118,7 @@ func (app *App) ListCommentsHandler(w http.ResponseWriter, r *http.Request) {
 	// /api/comments?post_id=1
 	postIDText := strings.TrimSpace(r.URL.Query().Get("post_id"))
 	if postIDText == "" {
-		writeError(w, http.StatusBadRequest, "post_id is required")
+		writeError(w, http.StatusBadRequest, "post_id query parameter is required, like /api/comments?post_id=1")
 		return
 	}
 
@@ -132,12 +132,12 @@ func (app *App) ListCommentsHandler(w http.ResponseWriter, r *http.Request) {
 	// Return 404 if the frontend asks for comments on a post that does not exist.
 	exists, err := app.postExists(postID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to check post")
+		writeError(w, http.StatusInternalServerError, "could not check whether the post exists")
 		return
 	}
 
 	if !exists {
-		writeError(w, http.StatusNotFound, "post not found")
+		writeError(w, http.StatusNotFound, "cannot load comments because the post was not found")
 		return
 	}
 
@@ -159,7 +159,7 @@ func (app *App) ListCommentsHandler(w http.ResponseWriter, r *http.Request) {
 		ORDER BY comments.created_at ASC;
 	`, postID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to load comments")
+		writeError(w, http.StatusInternalServerError, "could not load comments right now")
 		return
 	}
 	defer rows.Close()
@@ -181,7 +181,7 @@ func (app *App) ListCommentsHandler(w http.ResponseWriter, r *http.Request) {
 			&comment.CreatedAt,
 		)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to read comment")
+			writeError(w, http.StatusInternalServerError, "could not read one of the comments")
 			return
 		}
 
@@ -190,7 +190,7 @@ func (app *App) ListCommentsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// rows.Err catches errors that can happen during the loop.
 	if err := rows.Err(); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to finish reading comments")
+		writeError(w, http.StatusInternalServerError, "could not finish loading comments")
 		return
 	}
 
@@ -208,11 +208,11 @@ func (req *createCommentRequest) clean() {
 func (req createCommentRequest) validate() error {
 	// These errors are sent back to the frontend as JSON error messages.
 	if req.PostID <= 0 {
-		return errors.New("post_id is required")
+		return errors.New("post_id must be a positive number")
 	}
 
 	if req.Content == "" {
-		return errors.New("content is required")
+		return errors.New("comment content is required")
 	}
 
 	return nil

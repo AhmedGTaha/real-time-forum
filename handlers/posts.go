@@ -43,7 +43,7 @@ func (app *App) PostsHandler(w http.ResponseWriter, r *http.Request) {
 		app.CreatePostHandler(w, r)
 	default:
 		w.Header().Set("Allow", "GET, POST")
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		writeError(w, http.StatusMethodNotAllowed, "use GET to list posts or POST to create a post")
 	}
 }
 
@@ -51,7 +51,7 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	// Creating a post requires a logged-in user, because every post needs an author.
 	user, err := app.GetCurrentUser(r)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "not logged in")
+		writeError(w, http.StatusUnauthorized, "please log in to create a post")
 		return
 	}
 
@@ -60,7 +60,7 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	// readJSON turns the browser's JSON body into the Go struct above.
 	err = readJSON(w, r, &req)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		writeError(w, http.StatusBadRequest, "request body must be valid JSON with title, content, and categories")
 		return
 	}
 
@@ -75,7 +75,7 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	// If anything fails, Rollback cancels the whole create-post operation.
 	tx, err := app.DB.Begin()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to start transaction")
+		writeError(w, http.StatusInternalServerError, "could not start saving the post")
 		return
 	}
 
@@ -86,14 +86,14 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	`, user.ID, req.Title, req.Content)
 	if err != nil {
 		tx.Rollback()
-		writeError(w, http.StatusInternalServerError, "failed to create post")
+		writeError(w, http.StatusInternalServerError, "could not save the post")
 		return
 	}
 
 	postID, err := result.LastInsertId()
 	if err != nil {
 		tx.Rollback()
-		writeError(w, http.StatusInternalServerError, "failed to read post id")
+		writeError(w, http.StatusInternalServerError, "post was saved, but the new post id could not be read")
 		return
 	}
 
@@ -103,7 +103,7 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		categoryID, err := getOrCreateCategoryID(tx, categoryName)
 		if err != nil {
 			tx.Rollback()
-			writeError(w, http.StatusInternalServerError, "failed to create category")
+			writeError(w, http.StatusInternalServerError, "could not save one of the post categories")
 			return
 		}
 
@@ -113,7 +113,7 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		`, postID, categoryID)
 		if err != nil {
 			tx.Rollback()
-			writeError(w, http.StatusInternalServerError, "failed to connect category to post")
+			writeError(w, http.StatusInternalServerError, "could not attach one of the categories to the post")
 			return
 		}
 	}
@@ -121,7 +121,7 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	// Commit makes all changes in the transaction permanent.
 	err = tx.Commit()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to save post")
+		writeError(w, http.StatusInternalServerError, "could not finish saving the post")
 		return
 	}
 
@@ -136,7 +136,7 @@ func (app *App) ListPostsHandler(w http.ResponseWriter, r *http.Request) {
 	// Only logged-in users can load the posts feed.
 	_, err := app.GetCurrentUser(r)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "not logged in")
+		writeError(w, http.StatusUnauthorized, "please log in to view posts")
 		return
 	}
 
@@ -163,7 +163,7 @@ func (app *App) ListPostsHandler(w http.ResponseWriter, r *http.Request) {
 		LIMIT 50;
 	`)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to load posts")
+		writeError(w, http.StatusInternalServerError, "could not load posts right now")
 		return
 	}
 	defer rows.Close()
@@ -188,7 +188,7 @@ func (app *App) ListPostsHandler(w http.ResponseWriter, r *http.Request) {
 			&post.CreatedAt,
 		)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to read post")
+			writeError(w, http.StatusInternalServerError, "could not read one of the posts")
 			return
 		}
 
@@ -199,7 +199,7 @@ func (app *App) ListPostsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// rows.Err catches errors that can happen during the loop.
 	if err := rows.Err(); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to finish reading posts")
+		writeError(w, http.StatusInternalServerError, "could not finish loading posts")
 		return
 	}
 
@@ -241,11 +241,11 @@ func (req *createPostRequest) clean() {
 func (req createPostRequest) validate() error {
 	// These errors are sent back to the frontend as JSON error messages.
 	if req.Title == "" {
-		return errors.New("title is required")
+		return errors.New("post title is required")
 	}
 
 	if req.Content == "" {
-		return errors.New("content is required")
+		return errors.New("post content is required")
 	}
 
 	if len(req.Categories) == 0 {

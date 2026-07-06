@@ -24,13 +24,13 @@ type meResponse struct {
 func (app *App) CurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		writeError(w, http.StatusMethodNotAllowed, "use GET to check the current user")
 		return
 	}
 
 	user, err := app.GetCurrentUser(r)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "not logged in")
+		writeError(w, http.StatusUnauthorized, "please log in to continue")
 		return
 	}
 
@@ -100,7 +100,7 @@ func (app *App) GetCurrentUser(r *http.Request) (currentUser, error) {
 func (app *App) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		writeError(w, http.StatusMethodNotAllowed, "use POST to log out")
 		return
 	}
 

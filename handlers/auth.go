@@ -46,7 +46,7 @@ type loginResponse struct {
 func (app *App) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		writeError(w, http.StatusMethodNotAllowed, "use POST to register a new account")
 		return
 	}
 
@@ -56,7 +56,7 @@ func (app *App) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// The & means "pass the address of req", so json.Decoder can modify it.
 	err := readJSON(w, r, &req)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		writeError(w, http.StatusBadRequest, "request body must be valid JSON with nickname, age, gender, first_name, last_name, email, and password")
 		return
 	}
 
@@ -71,7 +71,7 @@ func (app *App) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to hash password")
+		writeError(w, http.StatusInternalServerError, "could not prepare account password")
 		return
 	}
 
@@ -97,17 +97,17 @@ func (app *App) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		if isUniqueConstraintError(err) {
-			writeError(w, http.StatusConflict, "nickname or email already exists")
+			writeError(w, http.StatusConflict, "nickname or email is already registered")
 			return
 		}
 
-		writeError(w, http.StatusInternalServerError, "failed to create user")
+		writeError(w, http.StatusInternalServerError, "could not create account right now")
 		return
 	}
 
 	userID, err := result.LastInsertId()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to read created user id")
+		writeError(w, http.StatusInternalServerError, "account was created, but the new user id could not be read")
 		return
 	}
 
@@ -122,7 +122,7 @@ func (app *App) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 func (app *App) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		writeError(w, http.StatusMethodNotAllowed, "use POST to log in")
 		return
 	}
 
@@ -132,7 +132,7 @@ func (app *App) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// Decode JSON like {"identifier":"ahmed","password":"secret123"} into req.
 	err := readJSON(w, r, &req)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		writeError(w, http.StatusBadRequest, "request body must be valid JSON with identifier and password")
 		return
 	}
 
@@ -160,7 +160,7 @@ func (app *App) LoginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		writeError(w, http.StatusInternalServerError, "failed to find user")
+		writeError(w, http.StatusInternalServerError, "could not check login details right now")
 		return
 	}
 
@@ -182,7 +182,7 @@ func (app *App) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		VALUES (?, ?, ?);
 	`, sessionID, userID, expiresAt)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to create session")
+		writeError(w, http.StatusInternalServerError, "password was accepted, but the login session could not be created")
 		return
 	}
 
@@ -239,7 +239,7 @@ func (req registerRequest) validate() error {
 	}
 
 	if !strings.Contains(req.Email, "@") {
-		return errors.New("email is invalid")
+		return errors.New("email must contain @")
 	}
 
 	if len(req.Password) < 6 {

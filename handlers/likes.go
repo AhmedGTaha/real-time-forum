@@ -22,13 +22,13 @@ type likeResponse struct {
 func (app *App) TogglePostLikeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		writeError(w, http.StatusMethodNotAllowed, "use POST to like or unlike a post")
 		return
 	}
 
 	user, err := app.GetCurrentUser(r)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "not logged in")
+		writeError(w, http.StatusUnauthorized, "please log in to like or unlike posts")
 		return
 	}
 
@@ -36,35 +36,35 @@ func (app *App) TogglePostLikeHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = readJSON(w, r, &req)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		writeError(w, http.StatusBadRequest, "request body must be valid JSON with post_id")
 		return
 	}
 
 	if req.PostID <= 0 {
-		writeError(w, http.StatusBadRequest, "post_id is required")
+		writeError(w, http.StatusBadRequest, "post_id must be a positive number")
 		return
 	}
 
 	exists, err := app.postExists(req.PostID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to check post")
+		writeError(w, http.StatusInternalServerError, "could not check whether the post exists")
 		return
 	}
 
 	if !exists {
-		writeError(w, http.StatusNotFound, "post not found")
+		writeError(w, http.StatusNotFound, "cannot like this post because it was not found")
 		return
 	}
 
 	liked, err := app.togglePostLike(req.PostID, user.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to toggle post like")
+		writeError(w, http.StatusInternalServerError, "could not update your post like")
 		return
 	}
 
 	likeCount, err := app.countPostLikes(req.PostID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to count post likes")
+		writeError(w, http.StatusInternalServerError, "your like was updated, but the post like count could not be refreshed")
 		return
 	}
 
@@ -77,13 +77,13 @@ func (app *App) TogglePostLikeHandler(w http.ResponseWriter, r *http.Request) {
 func (app *App) ToggleCommentLikeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		writeError(w, http.StatusMethodNotAllowed, "use POST to like or unlike a comment")
 		return
 	}
 
 	user, err := app.GetCurrentUser(r)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "not logged in")
+		writeError(w, http.StatusUnauthorized, "please log in to like or unlike comments")
 		return
 	}
 
@@ -91,35 +91,35 @@ func (app *App) ToggleCommentLikeHandler(w http.ResponseWriter, r *http.Request)
 
 	err = readJSON(w, r, &req)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		writeError(w, http.StatusBadRequest, "request body must be valid JSON with comment_id")
 		return
 	}
 
 	if req.CommentID <= 0 {
-		writeError(w, http.StatusBadRequest, "comment_id is required")
+		writeError(w, http.StatusBadRequest, "comment_id must be a positive number")
 		return
 	}
 
 	exists, err := app.commentExists(req.CommentID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to check comment")
+		writeError(w, http.StatusInternalServerError, "could not check whether the comment exists")
 		return
 	}
 
 	if !exists {
-		writeError(w, http.StatusNotFound, "comment not found")
+		writeError(w, http.StatusNotFound, "cannot like this comment because it was not found")
 		return
 	}
 
 	liked, err := app.toggleCommentLike(req.CommentID, user.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to toggle comment like")
+		writeError(w, http.StatusInternalServerError, "could not update your comment like")
 		return
 	}
 
 	likeCount, err := app.countCommentLikes(req.CommentID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to count comment likes")
+		writeError(w, http.StatusInternalServerError, "your like was updated, but the comment like count could not be refreshed")
 		return
 	}
 
