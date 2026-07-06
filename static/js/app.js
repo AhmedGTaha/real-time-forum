@@ -1,4 +1,3 @@
-// Grab the HTML elements once, then reuse these variables below.
 const authStatus = document.getElementById("auth-status");
 const guestView = document.getElementById("guest-view");
 const userView = document.getElementById("user-view");
@@ -13,7 +12,18 @@ const showRegisterBtn = document.getElementById("show-register-btn");
 const currentUserNickname = document.getElementById("current-user-nickname");
 const logoutBtn = document.getElementById("logout-btn");
 
-// Wire browser events to the functions that handle them.
+const createPostForm = document.getElementById("create-post-form");
+const postsFeed = document.getElementById("posts-feed");
+
+const commentsPanel = document.getElementById("comments-panel");
+const commentsPostTitle = document.getElementById("comments-post-title");
+const closeCommentsBtn = document.getElementById("close-comments-btn");
+const commentsList = document.getElementById("comments-list");
+const createCommentForm = document.getElementById("create-comment-form");
+const commentContent = document.getElementById("comment-content");
+
+let selectedPostID = null;
+
 showLoginBtn.addEventListener("click", showLoginForm);
 showRegisterBtn.addEventListener("click", showRegisterForm);
 
@@ -21,21 +31,16 @@ loginForm.addEventListener("submit", handleLogin);
 registerForm.addEventListener("submit", handleRegister);
 logoutBtn.addEventListener("click", handleLogout);
 
-const createPostForm = document.getElementById("create-post-form");
-const postsFeed = document.getElementById("posts-feed");
+createPostForm.addEventListener("submit", handleCreatePost);
+postsFeed.addEventListener("click", handlePostsFeedClick);
 
-// On page load, ask the backend if the browser already has a valid session.
+closeCommentsBtn.addEventListener("click", closeCommentsPanel);
+createCommentForm.addEventListener("submit", handleCreateComment);
+
 checkCurrentUser();
 
-// -----------------------------
-// Form switching
-// -----------------------------
-
 function showLoginForm() {
-  // shows the login form
   loginForm.classList.remove("hidden");
-  
-  // hides the register form
   registerForm.classList.add("hidden");
 
   showLoginBtn.classList.add("active");
@@ -45,10 +50,7 @@ function showLoginForm() {
 }
 
 function showRegisterForm() {
-  // shows the register form
   registerForm.classList.remove("hidden");
-
-  // hides the login form
   loginForm.classList.add("hidden");
 
   showRegisterBtn.classList.add("active");
@@ -57,13 +59,8 @@ function showRegisterForm() {
   clearMessage();
 }
 
-// -----------------------------
-// Session/auth requests
-// -----------------------------
-
 async function checkCurrentUser() {
   try {
-    // GET /api/me uses the session_id cookie, if the browser has one.
     const response = await fetch("/api/me");
 
     if (!response.ok) {
@@ -71,7 +68,6 @@ async function checkCurrentUser() {
       return;
     }
 
-    // response.json() converts the backend JSON response into a JS object.
     const data = await response.json();
     showUserView(data.user);
   } catch (error) {
@@ -80,11 +76,8 @@ async function checkCurrentUser() {
 }
 
 async function handleRegister(event) {
-  // Stop the browser from doing a normal page refresh form submit.
   event.preventDefault();
 
-  // This object will become the JSON request body sent to Go.
-  // The key names match the json tags in handlers/auth.go.
   const payload = {
     nickname: inputValue("register-nickname"),
     age: Number(inputValue("register-age")),
@@ -108,10 +101,8 @@ async function handleRegister(event) {
 }
 
 async function handleLogin(event) {
-  // Stop the browser from reloading the page.
   event.preventDefault();
 
-  // This becomes JSON like {"identifier":"ahmed","password":"secret123"}.
   const payload = {
     identifier: inputValue("login-identifier"),
     password: inputValue("login-password"),
@@ -129,8 +120,6 @@ async function handleLogin(event) {
 }
 
 async function handleLogout() {
-  // Logout does not need a JSON body. The cookie tells the backend which
-  // session to delete.
   const result = await fetch("/api/logout", {
     method: "POST",
   });
@@ -140,6 +129,7 @@ async function handleLogout() {
     return;
   }
 
+  closeCommentsPanel();
   showGuestView();
   showMessage("Logged out successfully", false);
 }
@@ -147,11 +137,11 @@ async function handleLogout() {
 async function handleCreatePost(event) {
   event.preventDefault();
 
-  const categoriesInput = document.getElementById("post-categories").value;
+  const categoriesInput = inputValue("post-categories");
 
   const payload = {
-    title: document.getElementById("post-title").value,
-    content: document.getElementById("post-content").value,
+    title: inputValue("post-title"),
+    content: inputValue("post-content"),
     categories: categoriesInput
       .split(",")
       .map((category) => category.trim())
@@ -166,6 +156,7 @@ async function handleCreatePost(event) {
   }
 
   createPostForm.reset();
+  closeCommentsPanel();
   showMessage("Post created successfully", false);
   await loadPosts();
 }
@@ -198,6 +189,8 @@ function renderPosts(posts) {
     const postElement = document.createElement("article");
     postElement.className = "post-card";
 
+    const categories = Array.isArray(post.categories) ? post.categories : [];
+
     postElement.innerHTML = `
       <div class="post-header">
         <h4>${escapeHTML(post.title)}</h4>
@@ -207,13 +200,21 @@ function renderPosts(posts) {
       <p>${escapeHTML(post.content)}</p>
 
       <div class="post-categories">
-        ${post.categories.map((category) => `<span>${escapeHTML(category)}</span>`).join("")}
+        ${categories.map((category) => `<span>${escapeHTML(category)}</span>`).join("")}
       </div>
 
       <div class="post-meta">
-        <span>${post.like_count} likes</span>
-        <span>${post.comment_count} comments</span>
+        <span>${Number(post.like_count) || 0} likes</span>
+        <span>${Number(post.comment_count) || 0} comments</span>
         <span>${escapeHTML(post.created_at)}</span>
+        <button
+          class="view-comments-btn"
+          type="button"
+          data-post-id="${post.id}"
+          data-post-title="${escapeHTML(post.title)}"
+        >
+          View comments
+        </button>
       </div>
     `;
 
@@ -221,32 +222,124 @@ function renderPosts(posts) {
   });
 }
 
-function escapeHTML(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+function handlePostsFeedClick(event) {
+  const commentsButton = event.target.closest(".view-comments-btn");
+
+  if (!commentsButton) {
+    return;
+  }
+
+  const postID = Number(commentsButton.dataset.postId);
+  const postTitle = commentsButton.dataset.postTitle;
+
+  if (!postID) {
+    showMessage("Invalid post selected", true);
+    return;
+  }
+
+  openCommentsPanel(postID, postTitle);
 }
 
-// -----------------------------
-// JSON helper
-// -----------------------------
+async function openCommentsPanel(postID, postTitle) {
+  selectedPostID = postID;
+  commentsPostTitle.textContent = `Comments: ${postTitle}`;
+  commentsPanel.classList.remove("hidden");
+  commentContent.value = "";
+
+  await loadComments(postID);
+}
+
+function closeCommentsPanel() {
+  selectedPostID = null;
+  commentsPanel.classList.add("hidden");
+  commentsList.innerHTML = "";
+  commentContent.value = "";
+}
+
+async function loadComments(postID) {
+  commentsList.innerHTML = "<p>Loading comments...</p>";
+
+  try {
+    const response = await fetch(`/api/comments?post_id=${postID}`);
+
+    if (!response.ok) {
+      commentsList.innerHTML = "<p>Failed to load comments.</p>";
+      return;
+    }
+
+    const data = await response.json();
+    renderComments(data.comments);
+  } catch (error) {
+    commentsList.innerHTML = "<p>Network error while loading comments.</p>";
+  }
+}
+
+function renderComments(comments) {
+  commentsList.innerHTML = "";
+
+  if (!comments || comments.length === 0) {
+    commentsList.innerHTML = "<p>No comments yet.</p>";
+    return;
+  }
+
+  comments.forEach((comment) => {
+    const commentElement = document.createElement("article");
+    commentElement.className = "comment-card";
+
+    commentElement.innerHTML = `
+      <div class="comment-header">
+        <strong>${escapeHTML(comment.author)}</strong>
+        <span>${escapeHTML(comment.created_at)}</span>
+      </div>
+
+      <p>${escapeHTML(comment.content)}</p>
+
+      <div class="comment-meta">
+        <span>${Number(comment.like_count) || 0} likes</span>
+      </div>
+    `;
+
+    commentsList.appendChild(commentElement);
+  });
+}
+
+async function handleCreateComment(event) {
+  event.preventDefault();
+
+  if (!selectedPostID) {
+    showMessage("No post selected", true);
+    return;
+  }
+
+  const payload = {
+    post_id: selectedPostID,
+    content: commentContent.value,
+  };
+
+  const result = await sendJSON("/api/comments", payload);
+
+  if (!result.ok) {
+    showMessage(result.data.error || "Failed to create comment", true);
+    return;
+  }
+
+  commentContent.value = "";
+  showMessage("Comment created successfully", false);
+
+  await loadComments(selectedPostID);
+  await loadPosts();
+}
 
 async function sendJSON(url, payload) {
   try {
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        // Tell Go that the request body is JSON.
         "Content-Type": "application/json",
       },
-      // JSON.stringify turns a JS object into JSON text for the request body.
       body: JSON.stringify(payload),
     });
 
-    // Convert the JSON response from Go back into a JS object.
     const data = await response.json();
 
     return {
@@ -263,16 +356,13 @@ async function sendJSON(url, payload) {
   }
 }
 
-// -----------------------------
-// UI helpers
-// -----------------------------
-
 function inputValue(id) {
   return document.getElementById(id).value;
 }
 
 function showGuestView() {
   showLoginForm();
+  closeCommentsPanel();
 
   authStatus.textContent = "Please login or register.";
   guestView.classList.remove("hidden");
@@ -298,4 +388,13 @@ function showMessage(text, isError) {
 function clearMessage() {
   message.textContent = "";
   message.className = "";
+}
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

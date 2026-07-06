@@ -81,6 +81,7 @@
           <h2>Welcome, <span id="current-user-nickname"></span></h2>
           <p>You are logged in.</p>
           <button id="logout-btn">Logout</button>
+
           <section class="forum-layout">
             <section class="card forum-card">
               <h3>Create Post</h3>
@@ -108,6 +109,24 @@
             <section class="card forum-card">
               <h3>Feed</h3>
               <div id="posts-feed"></div>
+
+              <section id="comments-panel" class="comments-panel hidden">
+                <div class="comments-header">
+                  <h3 id="comments-post-title">Comments</h3>
+                  <button id="close-comments-btn" type="button">Close</button>
+                </div>
+
+                <div id="comments-list"></div>
+
+                <form id="create-comment-form" class="form">
+                  <label>
+                    Add Comment
+                    <textarea id="comment-content" rows="3" required></textarea>
+                  </label>
+
+                  <button type="submit">Comment</button>
+                </form>
+              </section>
             </section>
           </section>
         </div>
@@ -117,6 +136,6 @@
     </section>
   </main>
 
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js?v=4"></script>
 </body>
 </html>
