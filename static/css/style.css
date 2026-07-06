@@ -331,6 +331,20 @@ button:hover {
   }
 }
 
+.chat-user-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unread-badge {
+  background: #51cf66;
+  color: #111;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
 .hidden {
   display: none;
 }

@@ -61,13 +61,7 @@ func (app *App) ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 		send: make(chan wsOutgoingMessage, 16),
 	}
 
-	app.Hub.AddClient(user.ID, client)
-
-	app.Hub.Broadcast(wsOutgoingMessage{
-		Type:   "presence",
-		UserID: user.ID,
-		Online: true,
-	})
+	app.Hub.AddClient(client)
 
 	go client.writePump()
 	client.readPump()
@@ -75,13 +69,7 @@ func (app *App) ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 
 func (client *Client) readPump() {
 	defer func() {
-		client.app.Hub.RemoveClient(client.user.ID, client)
-
-		client.app.Hub.Broadcast(wsOutgoingMessage{
-			Type:   "presence",
-			UserID: client.user.ID,
-			Online: false,
-		})
+		client.app.Hub.RemoveClient(client)
 
 		close(client.send)
 		client.conn.Close()
