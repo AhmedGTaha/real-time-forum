@@ -9,14 +9,14 @@
 <body>
   <main id="app">
     <section class="auth-layout">
-      <div class="card">
+      <div class="card main-card">
         <h1>Real Time Forum</h1>
         <p id="auth-status">Checking session...</p>
 
         <div id="guest-view" class="hidden">
           <div class="tabs">
-            <button id="show-login-btn" class="tab-btn active">Login</button>
-            <button id="show-register-btn" class="tab-btn">Register</button>
+            <button id="show-login-btn" class="tab-btn active" type="button">Login</button>
+            <button id="show-register-btn" class="tab-btn" type="button">Register</button>
           </div>
 
           <form id="login-form" class="form">
@@ -80,7 +80,7 @@
         <div id="user-view" class="hidden">
           <h2>Welcome, <span id="current-user-nickname"></span></h2>
           <p>You are logged in.</p>
-          <button id="logout-btn">Logout</button>
+          <button id="logout-btn" type="button">Logout</button>
 
           <section class="forum-layout">
             <section class="card forum-card">
@@ -136,6 +136,6 @@
     </section>
   </main>
 
-  <script src="/static/js/app.js?v=4"></script>
+  <script src="/static/js/app.js?v=6"></script>
 </body>
 </html>

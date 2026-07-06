@@ -36,6 +36,7 @@ postsFeed.addEventListener("click", handlePostsFeedClick);
 
 closeCommentsBtn.addEventListener("click", closeCommentsPanel);
 createCommentForm.addEventListener("submit", handleCreateComment);
+commentsList.addEventListener("click", handleCommentsListClick);
 
 checkCurrentUser();
 
@@ -164,16 +165,18 @@ async function handleCreatePost(event) {
 async function loadPosts() {
   try {
     const response = await fetch("/api/posts");
+    const data = await readResponseJSON(response);
 
     if (!response.ok) {
+      showMessage(data.error || "Failed to load posts", true);
       postsFeed.innerHTML = "<p>Failed to load posts.</p>";
       return;
     }
 
-    const data = await response.json();
     renderPosts(data.posts);
   } catch (error) {
     postsFeed.innerHTML = "<p>Network error while loading posts.</p>";
+    showMessage("Network error while loading posts", true);
   }
 }
 
@@ -208,6 +211,13 @@ function renderPosts(posts) {
         <span>${Number(post.comment_count) || 0} comments</span>
         <span>${escapeHTML(post.created_at)}</span>
         <button
+          class="like-btn post-like-btn"
+          type="button"
+          data-post-id="${post.id}"
+        >
+          Like
+        </button>
+        <button
           class="view-comments-btn"
           type="button"
           data-post-id="${post.id}"
@@ -223,6 +233,20 @@ function renderPosts(posts) {
 }
 
 function handlePostsFeedClick(event) {
+  const postLikeButton = event.target.closest(".post-like-btn");
+
+  if (postLikeButton) {
+    const postID = Number(postLikeButton.dataset.postId);
+
+    if (!postID) {
+      showMessage("Invalid post selected", true);
+      return;
+    }
+
+    togglePostLike(postID);
+    return;
+  }
+
   const commentsButton = event.target.closest(".view-comments-btn");
 
   if (!commentsButton) {
@@ -260,17 +284,19 @@ async function loadComments(postID) {
   commentsList.innerHTML = "<p>Loading comments...</p>";
 
   try {
-    const response = await fetch(`/api/comments?post_id=${postID}`);
+    const response = await fetch(`/api/comments?post_id=${encodeURIComponent(postID)}`);
+    const data = await readResponseJSON(response);
 
     if (!response.ok) {
+      showMessage(data.error || "Failed to load comments", true);
       commentsList.innerHTML = "<p>Failed to load comments.</p>";
       return;
     }
 
-    const data = await response.json();
     renderComments(data.comments);
   } catch (error) {
     commentsList.innerHTML = "<p>Network error while loading comments.</p>";
+    showMessage("Network error while loading comments", true);
   }
 }
 
@@ -296,6 +322,13 @@ function renderComments(comments) {
 
       <div class="comment-meta">
         <span>${Number(comment.like_count) || 0} likes</span>
+        <button
+          class="like-btn comment-like-btn"
+          type="button"
+          data-comment-id="${comment.id}"
+        >
+          Like
+        </button>
       </div>
     `;
 
@@ -340,7 +373,7 @@ async function sendJSON(url, payload) {
       body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
+    const data = await readResponseJSON(response);
 
     return {
       ok: response.ok,
@@ -353,6 +386,14 @@ async function sendJSON(url, payload) {
         error: "Network error",
       },
     };
+  }
+}
+
+async function readResponseJSON(response) {
+  try {
+    return await response.json();
+  } catch (error) {
+    return {};
   }
 }
 
@@ -397,4 +438,53 @@ function escapeHTML(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+async function togglePostLike(postID) {
+  const result = await sendJSON("/api/likes/post", {
+    post_id: postID,
+  });
+
+  if (!result.ok) {
+    showMessage(result.data.error || "Failed to like post", true);
+    return;
+  }
+
+  await loadPosts();
+
+  if (selectedPostID) {
+    await loadComments(selectedPostID);
+  }
+}
+
+function handleCommentsListClick(event) {
+  const commentLikeButton = event.target.closest(".comment-like-btn");
+
+  if (!commentLikeButton) {
+    return;
+  }
+
+  const commentID = Number(commentLikeButton.dataset.commentId);
+
+  if (!commentID) {
+    showMessage("Invalid comment selected", true);
+    return;
+  }
+
+  toggleCommentLike(commentID);
+}
+
+async function toggleCommentLike(commentID) {
+  const result = await sendJSON("/api/likes/comment", {
+    comment_id: commentID,
+  });
+
+  if (!result.ok) {
+    showMessage(result.data.error || "Failed to like comment", true);
+    return;
+  }
+
+  if (selectedPostID) {
+    await loadComments(selectedPostID);
+  }
 }

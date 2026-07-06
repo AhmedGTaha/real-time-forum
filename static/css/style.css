@@ -6,7 +6,7 @@ body {
 }
 
 #app {
-  max-width: 900px;
+  max-width: 1120px;
   margin: 40px auto;
   padding: 20px;
 }
@@ -18,11 +18,14 @@ body {
 
 .card {
   width: 100%;
-  max-width: 500px;
   background: #1c1c1c;
   padding: 24px;
   border-radius: 10px;
   border: 1px solid #333;
+}
+
+.main-card {
+  max-width: 900px;
 }
 
 .tabs {
@@ -75,6 +78,11 @@ button {
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  font: inherit;
+}
+
+button:hover {
+  opacity: 0.9;
 }
 
 .error {
@@ -148,10 +156,26 @@ button {
   align-items: center;
 }
 
+.like-btn,
 .view-comments-btn {
   background: #2b2b2b;
   color: #f5f5f5;
   border: 1px solid #444;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+
+.like-btn:hover,
+.view-comments-btn:hover {
+  background: #3a3a3a;
+}
+
+.like-btn {
+  color: #ffd166;
+}
+
+.view-comments-btn {
+  color: #9ad0ff;
 }
 
 .comments-panel {
@@ -197,8 +221,12 @@ button {
 }
 
 .comment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   color: #aaa;
   font-size: 14px;
+  align-items: center;
 }
 
 .hidden {
