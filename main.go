@@ -37,6 +37,8 @@ func main() {
 	mux.HandleFunc("/api/comments", app.CommentsHandler)
 	mux.HandleFunc("/api/likes/post", app.TogglePostLikeHandler)
 	mux.HandleFunc("/api/likes/comment", app.ToggleCommentLikeHandler)
+	mux.HandleFunc("/api/chat/users", app.ChatUsersHandler)
+	mux.HandleFunc("/api/chat/messages", app.ChatMessagesHandler)
 
 	fileServer := http.FileServer(http.Dir("static"))
 	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
