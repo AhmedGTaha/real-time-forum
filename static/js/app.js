@@ -28,16 +28,24 @@ const chatTitle = document.getElementById("chat-title");
 const chatForm = document.getElementById("chat-form");
 const chatInput = document.getElementById("chat-input");
 
+const themeToggleButtons = document.querySelectorAll("[data-theme-toggle]");
+const mobileMenuButton = document.getElementById("mobile-menu-btn");
+const mobileDrawer = document.getElementById("mobile-drawer");
+const mobileDrawerClose = document.getElementById("mobile-drawer-close");
+const mobileDrawerLinks = document.querySelectorAll("#mobile-drawer a");
+
 let selectedPostID = null;
 
 let currentUser = null;
 let selectedChatUserID = null;
+let selectedChatUserOnline = false;
 let chatSocket = null;
 let oldestMessageID = null;
 let isLoadingOlderMessages = false;
 let chatScrollTimeout = null;
 let displayedChatMessageIDs = new Set();
 let unreadChatUserIDs = new Set();
+let revealObserver = null;
 
 showLoginBtn.addEventListener("click", showLoginForm);
 showRegisterBtn.addEventListener("click", showRegisterForm);
@@ -57,6 +65,9 @@ chatUsersList.addEventListener("click", handleChatUserClick);
 chatForm.addEventListener("submit", handleSendChatMessage);
 chatMessages.addEventListener("scroll", handleChatMessagesScroll);
 
+setupTheme();
+setupMobileDrawer();
+setupRevealObserver();
 checkCurrentUser();
 
 function showLoginForm() {
@@ -209,26 +220,39 @@ function renderPosts(posts) {
 
   posts.forEach((post) => {
     const postElement = document.createElement("article");
-    postElement.className = "post-card";
+    postElement.className = "post-card reveal";
 
     const categories = Array.isArray(post.categories) ? post.categories : [];
+    const primaryCategory = categories[0] || "general";
 
     postElement.innerHTML = `
       <div class="post-header">
-        <h4>${escapeHTML(post.title)}</h4>
-        <span>by ${escapeHTML(post.author)}</span>
+        <div class="post-author">
+          <span class="avatar">${escapeHTML(initials(post.author))}</span>
+          <div>
+            <strong>${escapeHTML(post.author)}</strong>
+            <span class="mono">@${escapeHTML(post.author)}</span>
+          </div>
+        </div>
+
+        <div class="post-header-meta">
+          <span class="tag">${escapeHTML(primaryCategory)}</span>
+          <span class="mono">${escapeHTML(post.created_at)}</span>
+        </div>
       </div>
 
-      <p>${escapeHTML(post.content)}</p>
+      <h4>${escapeHTML(post.title)}</h4>
+      <p class="post-preview">${escapeHTML(post.content)}</p>
 
       <div class="post-categories">
         ${categories.map((category) => `<span>${escapeHTML(category)}</span>`).join("")}
       </div>
 
       <div class="post-meta">
-        <span>${Number(post.like_count) || 0} likes</span>
-        <span>${Number(post.comment_count) || 0} comments</span>
-        <span>${escapeHTML(post.created_at)}</span>
+        <span class="mono">${Number(post.like_count) || 0} votes</span>
+        <span class="mono">${Number(post.comment_count) || 0} comments</span>
+        <button class="icon-action" type="button" aria-label="Share post">S</button>
+        <button class="icon-action" type="button" aria-label="Save post">B</button>
         <button
           class="like-btn post-like-btn"
           type="button"
@@ -248,6 +272,7 @@ function renderPosts(posts) {
     `;
 
     postsFeed.appendChild(postElement);
+    observeRevealElement(postElement);
   });
 }
 
@@ -329,12 +354,12 @@ function renderComments(comments) {
 
   comments.forEach((comment) => {
     const commentElement = document.createElement("article");
-    commentElement.className = "comment-card";
+    commentElement.className = "comment-card reveal";
 
     commentElement.innerHTML = `
       <div class="comment-header">
         <strong>${escapeHTML(comment.author)}</strong>
-        <span>${escapeHTML(comment.created_at)}</span>
+        <span class="mono">${escapeHTML(comment.created_at)}</span>
       </div>
 
       <p>${escapeHTML(comment.content)}</p>
@@ -352,6 +377,7 @@ function renderComments(comments) {
     `;
 
     commentsList.appendChild(commentElement);
+    observeRevealElement(commentElement);
   });
 }
 
@@ -438,6 +464,7 @@ function showUserView(user) {
 
   authStatus.textContent = "Session active.";
   currentUserNickname.textContent = user.nickname;
+  updateProfileSummary(user);
 
   guestView.classList.add("hidden");
   userView.classList.remove("hidden");
@@ -466,6 +493,10 @@ function escapeHTML(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function initials(value) {
+  return String(value || "?").trim().slice(0, 2).toUpperCase();
 }
 
 async function togglePostLike(postID) {
@@ -520,16 +551,18 @@ async function toggleCommentLike(commentID) {
 async function loadChatUsers() {
   try {
     const response = await fetch("/api/chat/users");
+    const data = await readResponseJSON(response);
 
     if (!response.ok) {
       chatUsersList.innerHTML = "<p>Failed to load users.</p>";
+      showMessage(data.error || "Failed to load chat users", true);
       return;
     }
 
-    const data = await response.json();
     renderChatUsers(data.users);
   } catch (error) {
     chatUsersList.innerHTML = "<p>Network error while loading users.</p>";
+    showMessage("Network error while loading chat users", true);
   }
 }
 
@@ -538,8 +571,15 @@ function renderChatUsers(users) {
 
   if (!users || users.length === 0) {
     chatUsersList.innerHTML = "<p>No other users yet.</p>";
+    selectedChatUserID = null;
+    selectedChatUserOnline = false;
+    chatTitle.textContent = "Select a user";
+    chatMessages.innerHTML = "<p>Select a user to start chatting.</p>";
+    updateChatInputState();
     return;
   }
+
+  let selectedUserStillExists = false;
 
   users.forEach((user) => {
     const userButton = document.createElement("button");
@@ -547,13 +587,21 @@ function renderChatUsers(users) {
     userButton.className = "chat-user-btn";
     userButton.dataset.userId = user.id;
     userButton.dataset.nickname = user.nickname;
+    userButton.dataset.online = user.online ? "true" : "false";
 
     if (Number(user.id) === selectedChatUserID) {
       userButton.classList.add("active");
+      selectedChatUserOnline = Boolean(user.online);
+      selectedUserStillExists = true;
     }
 
     const statusClass = user.online ? "online" : "offline";
     const statusText = user.online ? "Online" : "Offline";
+
+    if (!user.online) {
+      userButton.classList.add("offline-user");
+      userButton.setAttribute("aria-disabled", "true");
+    }
 
     const hasUnread = unreadChatUserIDs.has(Number(user.id));
 
@@ -568,6 +616,15 @@ function renderChatUsers(users) {
 
     chatUsersList.appendChild(userButton);
   });
+
+  if (selectedChatUserID && !selectedUserStillExists) {
+    selectedChatUserID = null;
+    selectedChatUserOnline = false;
+    chatTitle.textContent = "Select a user";
+    chatMessages.innerHTML = "<p>Select a user to start chatting.</p>";
+  }
+
+  updateChatInputState();
 }
 
 async function handleChatUserClick(event) {
@@ -578,13 +635,13 @@ async function handleChatUserClick(event) {
   }
 
   selectedChatUserID = Number(userButton.dataset.userId);
+  selectedChatUserOnline = userButton.dataset.online === "true";
   unreadChatUserIDs.delete(selectedChatUserID);
   oldestMessageID = null;
 
   chatTitle.textContent = `Chat with ${userButton.dataset.nickname}`;
-  chatInput.disabled = false;
-  chatForm.querySelector("button").disabled = false;
   chatInput.value = "";
+  updateChatInputState();
 
   await loadChatMessages(selectedChatUserID);
   await loadChatUsers();
@@ -595,17 +652,19 @@ async function loadChatMessages(userID) {
 
   try {
     const response = await fetch(`/api/chat/messages?user_id=${userID}`);
+    const data = await readResponseJSON(response);
 
     if (!response.ok) {
       chatMessages.innerHTML = "<p>Failed to load messages.</p>";
+      showMessage(data.error || "Failed to load messages", true);
       return;
     }
 
-    const data = await response.json();
     renderChatMessages(data.messages);
     scrollChatToBottom();
   } catch (error) {
     chatMessages.innerHTML = "<p>Network error while loading messages.</p>";
+    showMessage("Network error while loading messages", true);
   }
 }
 
@@ -642,10 +701,11 @@ async function loadOlderChatMessages() {
 
     if (!response.ok) {
       isLoadingOlderMessages = false;
+      showMessage("Failed to load older messages", true);
       return;
     }
 
-    const data = await response.json();
+    const data = await readResponseJSON(response);
 
     if (!data.messages || data.messages.length === 0) {
       isLoadingOlderMessages = false;
@@ -718,7 +778,9 @@ function appendChatMessage(message) {
   }
 
   displayedChatMessageIDs.add(messageID);
-  chatMessages.appendChild(createChatMessageElement(message));
+  const messageElement = createChatMessageElement(message);
+  chatMessages.appendChild(messageElement);
+  observeRevealElement(messageElement);
 
   return true;
 }
@@ -747,19 +809,37 @@ function connectChatSocket() {
 }
 
 function handleChatSocketMessage(event) {
-  const data = JSON.parse(event.data);
+  let data;
+
+  try {
+    data = JSON.parse(event.data);
+  } catch (error) {
+    showMessage("Invalid chat message received", true);
+    return;
+  }
 
   switch (data.type) {
     case "private_message":
       handleIncomingPrivateMessage(data.message);
       break;
     case "presence":
-      loadChatUsers();
+      handleChatPresenceUpdate(data);
       break;
     case "error":
       showMessage(data.error || "Chat error", true);
       break;
   }
+}
+
+function handleChatPresenceUpdate(data) {
+  const userID = Number(data.user_id);
+
+  if (userID === selectedChatUserID) {
+    selectedChatUserOnline = Boolean(data.online);
+    updateChatInputState();
+  }
+
+  loadChatUsers();
 }
 
 function handleIncomingPrivateMessage(message) {
@@ -823,15 +903,20 @@ function handleSendChatMessage(event) {
     return;
   }
 
-  const content = chatInput.value.trim();
-
-  if (content === "") {
-    showMessage("Message cannot be empty", true);
+  if (!selectedChatUserOnline) {
+    showMessage("User is offline", true);
     return;
   }
 
   if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
     showMessage("Chat is not connected", true);
+    return;
+  }
+
+  const content = chatInput.value.trim();
+
+  if (content === "") {
+    showMessage("Message cannot be empty", true);
     return;
   }
 
@@ -853,6 +938,7 @@ function closeChatSocket() {
 
 function clearChatState() {
   selectedChatUserID = null;
+  selectedChatUserOnline = false;
   oldestMessageID = null;
   isLoadingOlderMessages = false;
   displayedChatMessageIDs.clear();
@@ -862,8 +948,7 @@ function clearChatState() {
   chatUsersList.innerHTML = "";
   chatMessages.innerHTML = "<p>Select a user to start chatting.</p>";
   chatInput.value = "";
-  chatInput.disabled = true;
-  chatForm.querySelector("button").disabled = true;
+  updateChatInputState();
 }
 
 function scrollChatToBottom() {
@@ -872,4 +957,115 @@ function scrollChatToBottom() {
 
 function getCurrentUserID() {
   return Number(currentUser?.id || currentUser?.ID || 0);
+}
+
+function updateChatInputState() {
+  const sendButton = chatForm.querySelector("button");
+  const canSend = Boolean(selectedChatUserID && selectedChatUserOnline);
+
+  chatInput.disabled = !canSend;
+  sendButton.disabled = !canSend;
+
+  if (!selectedChatUserID) {
+    chatInput.placeholder = "Select a user to start chatting.";
+    return;
+  }
+
+  chatInput.placeholder = selectedChatUserOnline
+    ? "Write a private message..."
+    : "User is offline. You can view previous messages.";
+}
+
+function updateProfileSummary(user) {
+  const profileName = document.querySelector(".profile-mini .profile-row strong");
+  const profileHandle = document.querySelector(".profile-mini .profile-row .mono");
+  const profileAvatar = document.querySelector(".profile-mini .avatar");
+
+  if (!profileName || !profileHandle || !profileAvatar) {
+    return;
+  }
+
+  profileName.textContent = user.nickname;
+  profileHandle.textContent = `@${user.nickname}`;
+  profileAvatar.textContent = initials(user.nickname);
+}
+
+function setupTheme() {
+  const savedTheme = localStorage.getItem("theme");
+  const preferredTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+
+  applyTheme(savedTheme || preferredTheme);
+
+  themeToggleButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      localStorage.setItem("theme", nextTheme);
+      applyTheme(nextTheme);
+    });
+  });
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+
+  themeToggleButtons.forEach((button) => {
+    button.setAttribute("aria-label", `Switch to ${theme === "dark" ? "light" : "dark"} theme`);
+  });
+}
+
+function setupMobileDrawer() {
+  if (!mobileMenuButton || !mobileDrawer || !mobileDrawerClose) {
+    return;
+  }
+
+  mobileMenuButton.addEventListener("click", openMobileDrawer);
+  mobileDrawerClose.addEventListener("click", closeMobileDrawer);
+
+  mobileDrawerLinks.forEach((link) => {
+    link.addEventListener("click", closeMobileDrawer);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMobileDrawer();
+    }
+  });
+}
+
+function openMobileDrawer() {
+  mobileDrawer.classList.add("open");
+  mobileMenuButton.setAttribute("aria-expanded", "true");
+}
+
+function closeMobileDrawer() {
+  mobileDrawer.classList.remove("open");
+  mobileMenuButton.setAttribute("aria-expanded", "false");
+}
+
+function setupRevealObserver() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
+
+  revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("revealed");
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, {
+    threshold: 0.1,
+  });
+}
+
+function observeRevealElement(element) {
+  if (!revealObserver) {
+    element.classList.add("revealed");
+    return;
+  }
+
+  revealObserver.observe(element);
 }

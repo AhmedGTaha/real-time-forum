@@ -143,6 +143,11 @@ func (client *Client) handlePrivateMessage(incoming wsIncomingMessage) {
 		return
 	}
 
+	if !client.app.Hub.IsOnline(incoming.ReceiverID) {
+		client.sendError("receiver is offline")
+		return
+	}
+
 	message, err := client.app.createChatMessage(client.user, incoming.ReceiverID, content)
 	if err != nil {
 		client.sendError("failed to save message")

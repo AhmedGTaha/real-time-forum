@@ -4,92 +4,195 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Real Time Forum</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-  <main id="app">
-    <section class="auth-layout">
-      <div class="card main-card">
-        <h1>Real Time Forum</h1>
-        <p id="auth-status">Checking session...</p>
+  <a class="skip-link" href="#main-feed">Skip to feed</a>
 
-        <div id="guest-view" class="hidden">
-          <div class="tabs">
-            <button id="show-login-btn" class="tab-btn active" type="button">Login</button>
-            <button id="show-register-btn" class="tab-btn" type="button">Register</button>
-          </div>
+  <div id="app" class="app-shell">
+    <section id="guest-view" class="auth-layout hidden">
+      <div class="auth-panel">
+        <a class="brand" href="/">
+          <span class="brand-mark">RT</span>
+          <span>Real Time Forum</span>
+        </a>
 
-          <form id="login-form" class="form">
-            <h2>Login</h2>
+        <p id="auth-status" class="auth-status">Checking session...</p>
 
-            <label>
-              Nickname or Email
-              <input type="text" id="login-identifier" required>
-            </label>
-
-            <label>
-              Password
-              <input type="password" id="login-password" required>
-            </label>
-
-            <button type="submit">Login</button>
-          </form>
-
-          <form id="register-form" class="form hidden">
-            <h2>Register</h2>
-
-            <label>
-              Nickname
-              <input type="text" id="register-nickname" required>
-            </label>
-
-            <label>
-              Age
-              <input type="number" id="register-age" required>
-            </label>
-
-            <label>
-              Gender
-              <input type="text" id="register-gender" required>
-            </label>
-
-            <label>
-              First Name
-              <input type="text" id="register-first-name" required>
-            </label>
-
-            <label>
-              Last Name
-              <input type="text" id="register-last-name" required>
-            </label>
-
-            <label>
-              Email
-              <input type="email" id="register-email" required>
-            </label>
-
-            <label>
-              Password
-              <input type="password" id="register-password" required>
-            </label>
-
-            <button type="submit">Register</button>
-          </form>
+        <div class="tabs" aria-label="Authentication">
+          <button id="show-login-btn" class="tab-btn active" type="button">Login</button>
+          <button id="show-register-btn" class="tab-btn" type="button">Register</button>
         </div>
 
-        <div id="user-view" class="hidden">
-          <h2>Welcome, <span id="current-user-nickname"></span></h2>
-          <p>You are logged in.</p>
-          <button id="logout-btn" type="button">Logout</button>
+        <form id="login-form" class="form">
+          <span class="section-label">Welcome back</span>
+          <h1>Login</h1>
 
-          <section class="chat-layout">
-            <section class="card forum-card chat-users">
-              <h3>Private Messages</h3>
+          <label>
+            Nickname or Email
+            <input type="text" id="login-identifier" autocomplete="username" required>
+          </label>
+
+          <label>
+            Password
+            <input type="password" id="login-password" autocomplete="current-password" required>
+          </label>
+
+          <button type="submit">Login</button>
+        </form>
+
+        <form id="register-form" class="form hidden">
+          <span class="section-label">Join the forum</span>
+          <h1>Register</h1>
+
+          <label>
+            Nickname
+            <input type="text" id="register-nickname" autocomplete="nickname" required>
+          </label>
+
+          <label>
+            Age
+            <input type="number" id="register-age" min="1" required>
+          </label>
+
+          <label>
+            Gender
+            <input type="text" id="register-gender" required>
+          </label>
+
+          <label>
+            First Name
+            <input type="text" id="register-first-name" autocomplete="given-name" required>
+          </label>
+
+          <label>
+            Last Name
+            <input type="text" id="register-last-name" autocomplete="family-name" required>
+          </label>
+
+          <label>
+            Email
+            <input type="email" id="register-email" autocomplete="email" required>
+          </label>
+
+          <label>
+            Password
+            <input type="password" id="register-password" autocomplete="new-password" required>
+          </label>
+
+          <button type="submit">Register</button>
+        </form>
+      </div>
+    </section>
+
+    <div id="user-view" class="hidden">
+      <header class="mobile-topbar">
+        <button id="mobile-menu-btn" class="icon-btn" type="button" aria-label="Open navigation" aria-expanded="false">
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+          </svg>
+        </button>
+
+        <a class="brand" href="#main-feed">
+          <span class="brand-mark">RT</span>
+          <span>Forum</span>
+        </a>
+
+        <div class="topbar-actions">
+          <a class="icon-btn" href="#main-feed" aria-label="Search">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m21 21-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+            </svg>
+          </a>
+          <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle theme">
+            <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 4V2m0 20v-2m8-8h2M2 12h2m14.4-6.4 1.4-1.4M4.2 19.8l1.4-1.4m0-12.8L4.2 4.2m15.6 15.6-1.4-1.4M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+            </svg>
+            <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5 8.5 8.5 0 1 0 20.5 14.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <aside id="mobile-drawer" class="mobile-drawer" aria-label="Mobile navigation">
+        <div class="drawer-header">
+          <a class="brand" href="#main-feed">
+            <span class="brand-mark">RT</span>
+            <span>Real Time Forum</span>
+          </a>
+          <button id="mobile-drawer-close" class="icon-btn" type="button" aria-label="Close navigation">x</button>
+        </div>
+
+        <nav class="drawer-nav">
+          <a href="#main-feed">Home / Feed</a>
+          <a href="#main-feed">Search</a>
+          <a href="#categories">Categories</a>
+          <a href="#notifications">Notifications</a>
+          <a href="#messages">Messages</a>
+          <a href="#create-post">Create Post</a>
+          <a href="#profile">Profile</a>
+        </nav>
+      </aside>
+
+      <div class="layout">
+        <aside class="sidebar" aria-label="Primary navigation">
+          <div>
+            <a class="brand" href="#main-feed">
+              <span class="brand-mark">RT</span>
+              <span>Real Time Forum</span>
+            </a>
+
+            <nav class="nav-list">
+              <a class="nav-item active" href="#main-feed"><span class="nav-icon">H</span><span class="nav-label">Home / Feed</span></a>
+              <a class="nav-item" href="#main-feed"><span class="nav-icon">S</span><span class="nav-label">Search</span></a>
+              <a class="nav-item" href="#categories"><span class="nav-icon">C</span><span class="nav-label">Categories</span></a>
+              <a class="nav-item" href="#notifications"><span class="nav-icon">N</span><span class="nav-label">Notifications</span></a>
+              <a class="nav-item" href="#messages"><span class="nav-icon">M</span><span class="nav-label">Messages</span></a>
+              <a class="nav-item" href="#create-post"><span class="nav-icon">+</span><span class="nav-label">Create Post</span></a>
+              <a class="nav-item" href="#profile"><span class="nav-icon">P</span><span class="nav-label">Profile</span></a>
+            </nav>
+          </div>
+
+          <div class="sidebar-footer">
+            <span class="mono">Theme</span>
+            <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle theme">
+              <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 4V2m0 20v-2m8-8h2M2 12h2m14.4-6.4 1.4-1.4M4.2 19.8l1.4-1.4m0-12.8L4.2 4.2m15.6 15.6-1.4-1.4M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+              </svg>
+              <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5 8.5 8.5 0 1 0 20.5 14.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
+              </svg>
+            </button>
+          </div>
+        </aside>
+
+        <main id="main-feed" class="feed-column">
+          <section class="feed-hero">
+            <span class="section-label">Active discussions</span>
+            <h1>Forum feed</h1>
+            <p class="auth-status">Welcome, <span id="current-user-nickname"></span>. Follow discussions, post threads, and chat in real time.</p>
+
+            <div class="trending-tags" aria-label="Trending tags">
+              <span class="tag">general</span>
+              <span class="tag">go</span>
+              <span class="tag">sqlite</span>
+              <span class="tag">frontend</span>
+            </div>
+          </section>
+
+          <section id="messages" class="chat-layout">
+            <section class="chat-users">
+              <span class="section-label">Messages</span>
+              <h2>Private Messages</h2>
               <div id="chat-users-list"></div>
             </section>
 
-            <section class="card forum-card chat-box">
-              <h3 id="chat-title">Select a user</h3>
+            <section class="chat-box">
+              <h2 id="chat-title">Select a user</h2>
 
               <div id="chat-messages">
                 <p>Select a user to start chatting.</p>
@@ -106,9 +209,10 @@
             </section>
           </section>
 
-          <section class="forum-layout">
-            <section class="card forum-card">
-              <h3>Create Post</h3>
+          <section id="create-post" class="forum-layout">
+            <section class="card">
+              <span class="section-label">Create</span>
+              <h2>Create Post</h2>
 
               <form id="create-post-form" class="form">
                 <label>
@@ -130,13 +234,17 @@
               </form>
             </section>
 
-            <section class="card forum-card">
-              <h3>Feed</h3>
+            <section class="card">
+              <span class="section-label">Threads</span>
+              <h2>Feed</h2>
               <div id="posts-feed"></div>
 
               <section id="comments-panel" class="comments-panel hidden">
                 <div class="comments-header">
-                  <h3 id="comments-post-title">Comments</h3>
+                  <div>
+                    <span class="section-label">Thread</span>
+                    <h2 id="comments-post-title">Comments</h2>
+                  </div>
                   <button id="close-comments-btn" type="button">Close</button>
                 </div>
 
@@ -153,13 +261,58 @@
               </section>
             </section>
           </section>
-        </div>
+        </main>
 
-        <p id="message"></p>
+        <aside class="right-sidebar" aria-label="Forum sidebar">
+          <section id="profile" class="profile-mini">
+            <span class="section-label">Profile</span>
+            <div class="profile-row">
+              <span class="avatar">ME</span>
+              <div>
+                <strong>Your account</strong>
+                <span class="mono">session active</span>
+              </div>
+            </div>
+            <button id="logout-btn" type="button">Logout</button>
+            <div class="stat-grid">
+              <div><strong>Live</strong><span class="mono">presence</span></div>
+              <div><strong>10</strong><span class="mono">msg page</span></div>
+            </div>
+          </section>
+
+          <section id="categories" class="trending-card">
+            <span class="section-label">Categories</span>
+            <h2>Suggested topics</h2>
+            <div class="trending-list">
+              <a class="category-chip" href="#main-feed"><span>#general</span><span class="mono">open</span></a>
+              <a class="category-chip" href="#main-feed"><span>#go</span><span class="mono">backend</span></a>
+              <a class="category-chip" href="#main-feed"><span>#sqlite</span><span class="mono">data</span></a>
+            </div>
+          </section>
+
+          <section id="notifications" class="trending-card">
+            <span class="section-label">Notifications</span>
+            <h2>Activity</h2>
+            <div class="trending-list">
+              <div class="category-chip"><span>New replies appear in comments.</span><span class="mono">live</span></div>
+              <div class="category-chip"><span>Unread chats show a badge.</span><span class="mono">new</span></div>
+            </div>
+          </section>
+        </aside>
       </div>
-    </section>
-  </main>
 
-  <script src="/static/js/app.js?v=7"></script>
+      <nav class="bottom-tabs" aria-label="Mobile tabs">
+        <a href="#main-feed"><span>H</span><span>Home</span></a>
+        <a href="#main-feed"><span>S</span><span>Search</span></a>
+        <a class="create-tab" href="#create-post"><span>+</span><span>Create</span></a>
+        <a href="#notifications"><span>N</span><span>Alerts</span></a>
+        <a href="#profile"><span>P</span><span>Profile</span></a>
+      </nav>
+    </div>
+
+    <p id="message" class="message-line" role="status" aria-live="polite"></p>
+  </div>
+
+  <script src="/static/js/app.js?v=9"></script>
 </body>
 </html>
