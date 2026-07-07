@@ -15,6 +15,10 @@ type createCommentRequest struct {
 	Content string `json:"content"`
 }
 
+type deleteCommentRequest struct {
+	CommentID int `json:"comment_id"`
+}
+
 type commentResponse struct {
 	// This is the JSON shape used when sending one comment back to the browser.
 	ID        int    `json:"id"`
@@ -38,9 +42,11 @@ func (app *App) CommentsHandler(w http.ResponseWriter, r *http.Request) {
 		app.ListCommentsHandler(w, r)
 	case http.MethodPost:
 		app.CreateCommentHandler(w, r)
+	case http.MethodDelete:
+		app.DeleteCommentHandler(w, r)
 	default:
-		w.Header().Set("Allow", "GET, POST")
-		writeError(w, http.StatusMethodNotAllowed, "use GET to list comments or POST to create a comment")
+		w.Header().Set("Allow", "GET, POST, DELETE")
+		writeError(w, http.StatusMethodNotAllowed, "use GET to list comments, POST to create a comment, or DELETE to remove your comment")
 	}
 }
 
@@ -197,6 +203,85 @@ func (app *App) ListCommentsHandler(w http.ResponseWriter, r *http.Request) {
 	// writeJSON converts commentsResponse into {"comments":[...]}.
 	writeJSON(w, http.StatusOK, commentsResponse{
 		Comments: comments,
+	})
+}
+
+func (app *App) DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
+	user, err := app.GetCurrentUser(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "please log in to delete a comment")
+		return
+	}
+
+	var req deleteCommentRequest
+
+	err = readJSON(w, r, &req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "request body must be valid JSON with comment_id")
+		return
+	}
+
+	if req.CommentID <= 0 {
+		writeError(w, http.StatusBadRequest, "comment_id must be a positive number")
+		return
+	}
+
+	var ownerID int
+	var postID int
+
+	err = app.DB.QueryRow(`
+		SELECT user_id, post_id
+		FROM comments
+		WHERE id = ?;
+	`, req.CommentID).Scan(&ownerID, &postID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "comment not found")
+			return
+		}
+
+		writeError(w, http.StatusInternalServerError, "could not check comment ownership")
+		return
+	}
+
+	if ownerID != user.ID {
+		writeError(w, http.StatusForbidden, "you can only delete your own comments")
+		return
+	}
+
+	tx, err := app.DB.Begin()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not start deleting the comment")
+		return
+	}
+
+	_, err = tx.Exec(`
+		DELETE FROM comment_likes
+		WHERE comment_id = ?;
+	`, req.CommentID)
+	if err != nil {
+		tx.Rollback()
+		writeError(w, http.StatusInternalServerError, "could not delete the comment")
+		return
+	}
+
+	_, err = tx.Exec(`
+		DELETE FROM comments
+		WHERE id = ? AND post_id = ?;
+	`, req.CommentID, postID)
+	if err != nil {
+		tx.Rollback()
+		writeError(w, http.StatusInternalServerError, "could not delete the comment")
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not finish deleting the comment")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"message": "comment deleted successfully",
 	})
 }
 

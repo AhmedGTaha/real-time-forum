@@ -33,10 +33,14 @@ const mobileMenuButton = document.getElementById("mobile-menu-btn");
 const mobileDrawer = document.getElementById("mobile-drawer");
 const mobileDrawerClose = document.getElementById("mobile-drawer-close");
 const mobileDrawerLinks = document.querySelectorAll("#mobile-drawer a");
+const mobileDrawerBackdrop = document.getElementById("sidebar-backdrop");
+const headerSearch = document.getElementById("header-search");
 
 let selectedPostID = null;
 
 let currentUser = null;
+let currentPosts = [];
+let lastFocusedElement = null;
 let selectedChatUserID = null;
 let selectedChatUserOnline = false;
 let chatSocket = null;
@@ -64,6 +68,7 @@ commentsList.addEventListener("click", handleCommentsListClick);
 chatUsersList.addEventListener("click", handleChatUserClick);
 chatForm.addEventListener("submit", handleSendChatMessage);
 chatMessages.addEventListener("scroll", handleChatMessagesScroll);
+headerSearch?.addEventListener("input", handlePostSearch);
 
 setupTheme();
 setupMobileDrawer();
@@ -203,7 +208,8 @@ async function loadPosts() {
       return;
     }
 
-    renderPosts(data.posts);
+    currentPosts = Array.isArray(data.posts) ? data.posts : [];
+    renderPosts(filterPosts(currentPosts));
   } catch (error) {
     postsFeed.innerHTML = "<p>Network error while loading posts.</p>";
     showMessage("Network error while loading posts", true);
@@ -214,60 +220,73 @@ function renderPosts(posts) {
   postsFeed.innerHTML = "";
 
   if (!posts || posts.length === 0) {
-    postsFeed.innerHTML = "<p>No posts yet. Create the first one.</p>";
+    postsFeed.innerHTML = '<p class="empty-state">No posts found.</p>';
     return;
   }
 
   posts.forEach((post) => {
     const postElement = document.createElement("article");
-    postElement.className = "post-card reveal";
+    postElement.className = "post-row reveal";
 
     const categories = Array.isArray(post.categories) ? post.categories : [];
-    const primaryCategory = categories[0] || "general";
+    const canDeletePost = Number(post.author_id) === getCurrentUserID();
+    const deletePostButton = canDeletePost
+      ? `
+        <button
+          class="delete-btn delete-post-btn"
+          type="button"
+          data-post-id="${post.id}"
+        >
+          Delete
+        </button>
+      `
+      : "";
 
     postElement.innerHTML = `
-      <div class="post-header">
-        <div class="post-author">
-          <span class="avatar">${escapeHTML(initials(post.author))}</span>
-          <div>
-            <strong>${escapeHTML(post.author)}</strong>
-            <span class="mono">@${escapeHTML(post.author)}</span>
-          </div>
+      <div class="post-row-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 16 16">
+          <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2"></circle>
+        </svg>
+      </div>
+
+      <div class="post-row-body">
+        <div class="post-row-title">
+          <a class="post-title-link" href="#comments-panel" data-post-id="${post.id}" data-post-title="${escapeHTML(post.title)}">
+            ${escapeHTML(post.title)}
+          </a>
+          ${categories.map((category) => `<span class="category-tag">${escapeHTML(category)}</span>`).join("")}
         </div>
 
-        <div class="post-header-meta">
-          <span class="tag">${escapeHTML(primaryCategory)}</span>
-          <span class="mono">${escapeHTML(post.created_at)}</span>
+        <p class="post-row-content">${escapeHTML(post.content)}</p>
+
+        <div class="post-row-meta">
+          <span>#${Number(post.id) || 0}</span>
+          <span>opened ${escapeHTML(post.created_at)} by ${escapeHTML(post.author)}</span>
+        </div>
+
+        <div class="post-actions">
+          <button
+            class="like-btn post-like-btn"
+            type="button"
+            data-post-id="${post.id}"
+          >
+            Like
+          </button>
+          <button
+            class="view-comments-btn"
+            type="button"
+            data-post-id="${post.id}"
+            data-post-title="${escapeHTML(post.title)}"
+          >
+            Comments
+          </button>
+          ${deletePostButton}
         </div>
       </div>
 
-      <h4>${escapeHTML(post.title)}</h4>
-      <p class="post-preview">${escapeHTML(post.content)}</p>
-
-      <div class="post-categories">
-        ${categories.map((category) => `<span>${escapeHTML(category)}</span>`).join("")}
-      </div>
-
-      <div class="post-meta">
-        <span class="mono">${Number(post.like_count) || 0} votes</span>
-        <span class="mono">${Number(post.comment_count) || 0} comments</span>
-        <button class="icon-action" type="button" aria-label="Share post">S</button>
-        <button class="icon-action" type="button" aria-label="Save post">B</button>
-        <button
-          class="like-btn post-like-btn"
-          type="button"
-          data-post-id="${post.id}"
-        >
-          Like
-        </button>
-        <button
-          class="view-comments-btn"
-          type="button"
-          data-post-id="${post.id}"
-          data-post-title="${escapeHTML(post.title)}"
-        >
-          View comments
-        </button>
+      <div class="post-row-stats">
+        <span title="Comments">${Number(post.comment_count) || 0} comments</span>
+        <span title="Likes">${Number(post.like_count) || 0} likes</span>
       </div>
     `;
 
@@ -276,7 +295,39 @@ function renderPosts(posts) {
   });
 }
 
+function handlePostSearch() {
+  renderPosts(filterPosts(currentPosts));
+}
+
+function filterPosts(posts) {
+  const query = headerSearch?.value.trim().toLowerCase() || "";
+
+  if (!query) {
+    return posts;
+  }
+
+  return posts.filter((post) => {
+    const categories = Array.isArray(post.categories) ? post.categories.join(" ") : "";
+    const searchableText = `${post.title} ${post.content} ${post.author} ${categories}`.toLowerCase();
+    return searchableText.includes(query);
+  });
+}
+
 function handlePostsFeedClick(event) {
+  const deletePostButton = event.target.closest(".delete-post-btn");
+
+  if (deletePostButton) {
+    const postID = Number(deletePostButton.dataset.postId);
+
+    if (!postID) {
+      showMessage("Invalid post selected", true);
+      return;
+    }
+
+    deletePost(postID);
+    return;
+  }
+
   const postLikeButton = event.target.closest(".post-like-btn");
 
   if (postLikeButton) {
@@ -291,7 +342,7 @@ function handlePostsFeedClick(event) {
     return;
   }
 
-  const commentsButton = event.target.closest(".view-comments-btn");
+  const commentsButton = event.target.closest(".view-comments-btn, .post-title-link");
 
   if (!commentsButton) {
     return;
@@ -355,6 +406,18 @@ function renderComments(comments) {
   comments.forEach((comment) => {
     const commentElement = document.createElement("article");
     commentElement.className = "comment-card reveal";
+    const canDeleteComment = Number(comment.author_id) === getCurrentUserID();
+    const deleteCommentButton = canDeleteComment
+      ? `
+        <button
+          class="delete-btn delete-comment-btn"
+          type="button"
+          data-comment-id="${comment.id}"
+        >
+          Delete
+        </button>
+      `
+      : "";
 
     commentElement.innerHTML = `
       <div class="comment-header">
@@ -373,6 +436,7 @@ function renderComments(comments) {
         >
           Like
         </button>
+        ${deleteCommentButton}
       </div>
     `;
 
@@ -409,9 +473,13 @@ async function handleCreateComment(event) {
 }
 
 async function sendJSON(url, payload) {
+  return sendJSONRequest(url, "POST", payload);
+}
+
+async function sendJSONRequest(url, method, payload) {
   try {
     const response = await fetch(url, {
-      method: "POST",
+      method,
       headers: {
         "Content-Type": "application/json",
       },
@@ -478,12 +546,12 @@ function showUserView(user) {
 
 function showMessage(text, isError) {
   message.textContent = text;
-  message.className = isError ? "error" : "success";
+  message.className = `message-line ${isError ? "error" : "success"}`;
 }
 
 function clearMessage() {
   message.textContent = "";
-  message.className = "";
+  message.className = "message-line";
 }
 
 function escapeHTML(value) {
@@ -517,6 +585,20 @@ async function togglePostLike(postID) {
 }
 
 function handleCommentsListClick(event) {
+  const deleteCommentButton = event.target.closest(".delete-comment-btn");
+
+  if (deleteCommentButton) {
+    const commentID = Number(deleteCommentButton.dataset.commentId);
+
+    if (!commentID) {
+      showMessage("Invalid comment selected", true);
+      return;
+    }
+
+    deleteComment(commentID);
+    return;
+  }
+
   const commentLikeButton = event.target.closest(".comment-like-btn");
 
   if (!commentLikeButton) {
@@ -531,6 +613,51 @@ function handleCommentsListClick(event) {
   }
 
   toggleCommentLike(commentID);
+}
+
+async function deletePost(postID) {
+  if (!confirm("Delete this post?")) {
+    return;
+  }
+
+  const result = await sendJSONRequest("/api/posts", "DELETE", {
+    post_id: postID,
+  });
+
+  if (!result.ok) {
+    showMessage(result.data.error || "Failed to delete post", true);
+    return;
+  }
+
+  if (selectedPostID === postID) {
+    closeCommentsPanel();
+  }
+
+  showMessage(result.data.message || "Post deleted successfully", false);
+  await loadPosts();
+}
+
+async function deleteComment(commentID) {
+  if (!confirm("Delete this comment?")) {
+    return;
+  }
+
+  const result = await sendJSONRequest("/api/comments", "DELETE", {
+    comment_id: commentID,
+  });
+
+  if (!result.ok) {
+    showMessage(result.data.error || "Failed to delete comment", true);
+    return;
+  }
+
+  showMessage(result.data.message || "Comment deleted successfully", false);
+
+  if (selectedPostID) {
+    await loadComments(selectedPostID);
+  }
+
+  await loadPosts();
 }
 
 async function toggleCommentLike(commentID) {
@@ -606,11 +733,14 @@ function renderChatUsers(users) {
     const hasUnread = unreadChatUserIDs.has(Number(user.id));
 
     userButton.innerHTML = `
-      <span>${escapeHTML(user.nickname)}</span>
+      <span class="chat-user-avatar" aria-hidden="true">${escapeHTML(initials(user.nickname))}</span>
 
-      <span class="chat-user-meta">
-        ${hasUnread ? '<strong class="unread-badge">New</strong>' : ""}
-        <small class="${statusClass}">${statusText}</small>
+      <span class="chat-user-main">
+        <span class="chat-user-name">${escapeHTML(user.nickname)}</span>
+        <span class="chat-user-meta">
+          <small class="${statusClass}">${statusText}</small>
+          ${hasUnread ? '<strong class="unread-badge">New</strong>' : ""}
+        </span>
       </span>
     `;
 
@@ -679,6 +809,7 @@ function renderChatMessages(messages) {
   }
 
   oldestMessageID = messages[0].id;
+  appendOlderMessagesButton();
 
   messages.forEach((message) => {
     appendChatMessage(message);
@@ -708,23 +839,35 @@ async function loadOlderChatMessages() {
     const data = await readResponseJSON(response);
 
     if (!data.messages || data.messages.length === 0) {
+      const loadOlderButton = chatMessages.querySelector(".load-older-messages-btn");
+      if (loadOlderButton) {
+        loadOlderButton.textContent = "No earlier messages";
+        loadOlderButton.disabled = true;
+      }
+
       isLoadingOlderMessages = false;
       return;
     }
 
-    oldestMessageID = data.messages[0].id;
+    const loadOlderButton = chatMessages.querySelector(".load-older-messages-btn");
+    loadOlderButton?.remove();
 
-    for (let index = data.messages.length - 1; index >= 0; index--) {
-      const message = data.messages[index];
+    oldestMessageID = data.messages[0].id;
+    const olderMessages = document.createDocumentFragment();
+
+    data.messages.forEach((message) => {
       const messageID = Number(message.id);
 
       if (displayedChatMessageIDs.has(messageID)) {
-        continue;
+        return;
       }
 
       displayedChatMessageIDs.add(messageID);
-      chatMessages.prepend(createChatMessageElement(message));
-    }
+      olderMessages.appendChild(createChatMessageElement(message));
+    });
+
+    chatMessages.prepend(olderMessages);
+    appendOlderMessagesButton();
 
     const newScrollHeight = chatMessages.scrollHeight;
     chatMessages.scrollTop = newScrollHeight - oldScrollHeight;
@@ -745,6 +888,20 @@ function handleChatMessagesScroll() {
       loadOlderChatMessages();
     }
   }, 300);
+}
+
+function appendOlderMessagesButton() {
+  if (!oldestMessageID || chatMessages.querySelector(".load-older-messages-btn")) {
+    return;
+  }
+
+  const loadOlderButton = document.createElement("button");
+  loadOlderButton.type = "button";
+  loadOlderButton.className = "btn btn-sm load-older-messages-btn";
+  loadOlderButton.textContent = "Load earlier messages";
+  loadOlderButton.addEventListener("click", loadOlderChatMessages);
+
+  chatMessages.prepend(loadOlderButton);
 }
 
 function createChatMessageElement(message) {
@@ -980,27 +1137,37 @@ function updateProfileSummary(user) {
   const profileName = document.querySelector(".profile-mini .profile-row strong");
   const profileHandle = document.querySelector(".profile-mini .profile-row .mono");
   const profileAvatar = document.querySelector(".profile-mini .avatar");
+  const headerAvatar = document.getElementById("header-avatar");
 
-  if (!profileName || !profileHandle || !profileAvatar) {
-    return;
+  if (profileName) {
+    profileName.textContent = user.nickname;
   }
 
-  profileName.textContent = user.nickname;
-  profileHandle.textContent = `@${user.nickname}`;
-  profileAvatar.textContent = initials(user.nickname);
+  if (profileHandle) {
+    profileHandle.textContent = `@${user.nickname}`;
+  }
+
+  if (profileAvatar) {
+    profileAvatar.textContent = initials(user.nickname);
+  }
+
+  if (headerAvatar) {
+    headerAvatar.textContent = initials(user.nickname);
+  }
 }
 
 function setupTheme() {
   const savedTheme = localStorage.getItem("theme");
-  const preferredTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
 
-  applyTheme(savedTheme || preferredTheme);
+  if (savedTheme) {
+    applyTheme(savedTheme);
+  } else {
+    updateThemeToggleLabels(getActiveTheme());
+  }
 
   themeToggleButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      const nextTheme = getActiveTheme() === "dark" ? "light" : "dark";
       localStorage.setItem("theme", nextTheme);
       applyTheme(nextTheme);
     });
@@ -1009,7 +1176,20 @@ function setupTheme() {
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
+  updateThemeToggleLabels(theme);
+}
 
+function getActiveTheme() {
+  const selectedTheme = document.documentElement.dataset.theme;
+
+  if (selectedTheme) {
+    return selectedTheme;
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function updateThemeToggleLabels(theme) {
   themeToggleButtons.forEach((button) => {
     button.setAttribute("aria-label", `Switch to ${theme === "dark" ? "light" : "dark"} theme`);
   });
@@ -1022,6 +1202,7 @@ function setupMobileDrawer() {
 
   mobileMenuButton.addEventListener("click", openMobileDrawer);
   mobileDrawerClose.addEventListener("click", closeMobileDrawer);
+  mobileDrawerBackdrop?.addEventListener("click", closeMobileDrawer);
 
   mobileDrawerLinks.forEach((link) => {
     link.addEventListener("click", closeMobileDrawer);
@@ -1032,16 +1213,57 @@ function setupMobileDrawer() {
       closeMobileDrawer();
     }
   });
+  document.addEventListener("keydown", trapMobileDrawerFocus);
 }
 
 function openMobileDrawer() {
+  lastFocusedElement = document.activeElement;
   mobileDrawer.classList.add("open");
+  mobileDrawer.removeAttribute("aria-hidden");
+  mobileDrawerBackdrop?.classList.add("backdrop-visible");
   mobileMenuButton.setAttribute("aria-expanded", "true");
+  document.body.style.overflow = "hidden";
+  mobileDrawer.querySelector("a, button")?.focus();
 }
 
 function closeMobileDrawer() {
   mobileDrawer.classList.remove("open");
+  mobileDrawer.setAttribute("aria-hidden", "true");
+  mobileDrawerBackdrop?.classList.remove("backdrop-visible");
   mobileMenuButton.setAttribute("aria-expanded", "false");
+  document.body.style.overflow = "";
+
+  if (lastFocusedElement instanceof HTMLElement) {
+    lastFocusedElement.focus();
+  }
+}
+
+function trapMobileDrawerFocus(event) {
+  if (event.key !== "Tab" || !mobileDrawer.classList.contains("open")) {
+    return;
+  }
+
+  const focusableElements = mobileDrawer.querySelectorAll(
+    'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  );
+
+  if (focusableElements.length === 0) {
+    return;
+  }
+
+  const firstElement = focusableElements[0];
+  const lastElement = focusableElements[focusableElements.length - 1];
+
+  if (event.shiftKey && document.activeElement === firstElement) {
+    event.preventDefault();
+    lastElement.focus();
+    return;
+  }
+
+  if (!event.shiftKey && document.activeElement === lastElement) {
+    event.preventDefault();
+    firstElement.focus();
+  }
 }
 
 function setupRevealObserver() {

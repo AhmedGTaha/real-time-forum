@@ -4,268 +4,266 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Real Time Forum</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   <a class="skip-link" href="#main-feed">Skip to feed</a>
 
   <div id="app" class="app-shell">
-    <section id="guest-view" class="auth-layout hidden">
-      <div class="auth-panel">
-        <a class="brand" href="/">
-          <span class="brand-mark">RT</span>
-          <span>Real Time Forum</span>
-        </a>
+    <section id="guest-view" class="auth-page hidden">
+      <div class="auth-logo" aria-hidden="true">
+        <svg width="48" height="48" viewBox="0 0 24 24" role="img">
+          <path d="M7.25 5.75h9.5A3.25 3.25 0 0 1 20 9v4.5a3.25 3.25 0 0 1-3.25 3.25h-3.2l-3.35 2.4a.75.75 0 0 1-1.2-.6v-1.8H7.25A3.25 3.25 0 0 1 4 13.5V9a3.25 3.25 0 0 1 3.25-3.25Z" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+          <path d="M8 10h8M8 13h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+        </svg>
+      </div>
 
-        <p id="auth-status" class="auth-status">Checking session...</p>
+      <p id="auth-status" class="auth-status">Checking session...</p>
 
-        <div class="tabs" aria-label="Authentication">
-          <button id="show-login-btn" class="tab-btn active" type="button">Login</button>
-          <button id="show-register-btn" class="tab-btn" type="button">Register</button>
-        </div>
+      <div class="auth-tabs" aria-label="Authentication">
+        <button id="show-login-btn" class="tab-btn active" type="button">Sign in</button>
+        <button id="show-register-btn" class="tab-btn" type="button">Register</button>
+      </div>
 
+      <div class="auth-box">
         <form id="login-form" class="form">
-          <span class="section-label">Welcome back</span>
-          <h1>Login</h1>
+          <h1 class="auth-title">Sign in to Forum</h1>
 
           <label>
-            Nickname or Email
-            <input type="text" id="login-identifier" autocomplete="username" required>
+            Nickname or email
+            <input class="form-input" type="text" id="login-identifier" autocomplete="username" required>
           </label>
 
           <label>
             Password
-            <input type="password" id="login-password" autocomplete="current-password" required>
+            <input class="form-input" type="password" id="login-password" autocomplete="current-password" required>
           </label>
 
-          <button type="submit">Login</button>
+          <button class="btn btn-primary btn-block" type="submit">Sign in</button>
         </form>
 
         <form id="register-form" class="form hidden">
-          <span class="section-label">Join the forum</span>
-          <h1>Register</h1>
+          <h1 class="auth-title">Create your account</h1>
 
           <label>
             Nickname
-            <input type="text" id="register-nickname" autocomplete="nickname" required>
+            <input class="form-input" type="text" id="register-nickname" autocomplete="nickname" required>
           </label>
 
           <label>
             Age
-            <input type="number" id="register-age" min="1" required>
+            <input class="form-input" type="number" id="register-age" min="1" required>
           </label>
 
           <label>
             Gender
-            <input type="text" id="register-gender" required>
+            <input class="form-input" type="text" id="register-gender" required>
           </label>
 
           <label>
-            First Name
-            <input type="text" id="register-first-name" autocomplete="given-name" required>
+            First name
+            <input class="form-input" type="text" id="register-first-name" autocomplete="given-name" required>
           </label>
 
           <label>
-            Last Name
-            <input type="text" id="register-last-name" autocomplete="family-name" required>
+            Last name
+            <input class="form-input" type="text" id="register-last-name" autocomplete="family-name" required>
           </label>
 
           <label>
             Email
-            <input type="email" id="register-email" autocomplete="email" required>
+            <input class="form-input" type="email" id="register-email" autocomplete="email" required>
           </label>
 
           <label>
             Password
-            <input type="password" id="register-password" autocomplete="new-password" required>
+            <input class="form-input" type="password" id="register-password" autocomplete="new-password" required>
           </label>
 
-          <button type="submit">Register</button>
+          <button class="btn btn-primary btn-block" type="submit">Create account</button>
         </form>
       </div>
     </section>
 
     <div id="user-view" class="hidden">
-      <header class="mobile-topbar">
-        <button id="mobile-menu-btn" class="icon-btn" type="button" aria-label="Open navigation" aria-expanded="false">
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-          </svg>
-        </button>
+      <header class="site-header">
+        <div class="header-inner">
+          <div class="header-left">
+            <button id="mobile-menu-btn" class="sidebar-toggle" type="button" aria-label="Open menu" aria-expanded="false">
+              <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+              </svg>
+            </button>
 
-        <a class="brand" href="#main-feed">
-          <span class="brand-mark">RT</span>
-          <span>Forum</span>
-        </a>
+            <a class="site-logo" href="#main-feed" aria-label="Real Time Forum home">
+              <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7.25 5.75h9.5A3.25 3.25 0 0 1 20 9v4.5a3.25 3.25 0 0 1-3.25 3.25h-3.2l-3.35 2.4a.75.75 0 0 1-1.2-.6v-1.8H7.25A3.25 3.25 0 0 1 4 13.5V9a3.25 3.25 0 0 1 3.25-3.25Z" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+              </svg>
+              <span>Forum</span>
+            </a>
+          </div>
 
-        <div class="topbar-actions">
-          <a class="icon-btn" href="#main-feed" aria-label="Search">
-            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m21 21-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-            </svg>
-          </a>
-          <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle theme">
-            <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 4V2m0 20v-2m8-8h2M2 12h2m14.4-6.4 1.4-1.4M4.2 19.8l1.4-1.4m0-12.8L4.2 4.2m15.6 15.6-1.4-1.4M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-            </svg>
-            <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5 8.5 8.5 0 1 0 20.5 14.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
-            </svg>
-          </button>
+          <div class="header-center">
+            <label class="header-search-label">
+              <span class="visually-hidden">Search posts</span>
+              <input id="header-search" class="header-search" type="search" placeholder="Search posts...">
+              <kbd>/</kbd>
+            </label>
+          </div>
+
+          <div class="header-right">
+            <a class="btn btn-sm btn-primary" href="#create-post">New post</a>
+            <button class="btn btn-sm theme-toggle" type="button" data-theme-toggle aria-label="Toggle theme">Theme</button>
+            <span id="header-avatar" class="avatar avatar-sm" aria-hidden="true">ME</span>
+          </div>
         </div>
       </header>
 
-      <aside id="mobile-drawer" class="mobile-drawer" aria-label="Mobile navigation">
-        <div class="drawer-header">
-          <a class="brand" href="#main-feed">
-            <span class="brand-mark">RT</span>
+      <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
+      <aside id="mobile-drawer" class="mobile-drawer" aria-label="Mobile navigation" aria-hidden="true">
+        <div class="mobile-drawer-header">
+          <a class="site-logo drawer-logo" href="#main-feed">
+            <span class="avatar avatar-sm">RT</span>
             <span>Real Time Forum</span>
           </a>
-          <button id="mobile-drawer-close" class="icon-btn" type="button" aria-label="Close navigation">x</button>
+          <button id="mobile-drawer-close" class="sidebar-close" type="button" aria-label="Close menu">x</button>
         </div>
 
-        <nav class="drawer-nav">
-          <a href="#main-feed">Home / Feed</a>
-          <a href="#main-feed">Search</a>
-          <a href="#categories">Categories</a>
-          <a href="#notifications">Notifications</a>
-          <a href="#messages">Messages</a>
-          <a href="#create-post">Create Post</a>
-          <a href="#profile">Profile</a>
+        <nav class="sidebar-nav">
+          <a class="nav-link active" href="#main-feed">Home</a>
+          <a class="nav-link" href="#create-post">New post</a>
+          <a class="nav-link" href="#messages">Messages</a>
+          <a class="nav-link" href="#categories">Categories</a>
+          <a class="nav-link" href="#profile">Profile</a>
         </nav>
       </aside>
 
-      <div class="layout">
+      <div class="dashboard-layout">
         <aside class="sidebar" aria-label="Primary navigation">
-          <div>
-            <a class="brand" href="#main-feed">
-              <span class="brand-mark">RT</span>
-              <span>Real Time Forum</span>
-            </a>
+          <div class="sidebar-section">
+            <div class="sidebar-heading-row">
+              <h2 class="sidebar-heading">Forum</h2>
+              <a class="btn btn-sm btn-new" href="#create-post">New</a>
+            </div>
 
-            <nav class="nav-list">
-              <a class="nav-item active" href="#main-feed"><span class="nav-icon">H</span><span class="nav-label">Home / Feed</span></a>
-              <a class="nav-item" href="#main-feed"><span class="nav-icon">S</span><span class="nav-label">Search</span></a>
-              <a class="nav-item" href="#categories"><span class="nav-icon">C</span><span class="nav-label">Categories</span></a>
-              <a class="nav-item" href="#notifications"><span class="nav-icon">N</span><span class="nav-label">Notifications</span></a>
-              <a class="nav-item" href="#messages"><span class="nav-icon">M</span><span class="nav-label">Messages</span></a>
-              <a class="nav-item" href="#create-post"><span class="nav-icon">+</span><span class="nav-label">Create Post</span></a>
-              <a class="nav-item" href="#profile"><span class="nav-icon">P</span><span class="nav-label">Profile</span></a>
+            <nav class="sidebar-nav">
+              <a class="nav-link active" href="#main-feed">Home</a>
+              <a class="nav-link" href="#create-post">My posts</a>
+              <a class="nav-link" href="#main-feed">Liked posts</a>
+              <a class="nav-link" href="#messages">Messages</a>
             </nav>
           </div>
 
-          <div class="sidebar-footer">
-            <span class="mono">Theme</span>
-            <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle theme">
-              <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 4V2m0 20v-2m8-8h2M2 12h2m14.4-6.4 1.4-1.4M4.2 19.8l1.4-1.4m0-12.8L4.2 4.2m15.6 15.6-1.4-1.4M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-              </svg>
-              <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5 8.5 8.5 0 1 0 20.5 14.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
-              </svg>
-            </button>
+          <div id="categories" class="sidebar-section">
+            <h2 class="sidebar-heading">Categories</h2>
+            <nav class="sidebar-nav">
+              <a class="nav-link category-link" href="#main-feed"><span class="category-dot dot-blue"></span>general<span class="badge">open</span></a>
+              <a class="nav-link category-link" href="#main-feed"><span class="category-dot dot-green"></span>go<span class="badge">api</span></a>
+              <a class="nav-link category-link" href="#main-feed"><span class="category-dot dot-purple"></span>sqlite<span class="badge">db</span></a>
+              <a class="nav-link category-link" href="#main-feed"><span class="category-dot dot-orange"></span>frontend<span class="badge">ui</span></a>
+            </nav>
           </div>
         </aside>
 
-        <main id="main-feed" class="feed-column">
-          <section class="feed-hero">
-            <span class="section-label">Active discussions</span>
-            <h1>Forum feed</h1>
-            <p class="auth-status">Welcome, <span id="current-user-nickname"></span>. Follow discussions, post threads, and chat in real time.</p>
-
-            <div class="trending-tags" aria-label="Trending tags">
-              <span class="tag">general</span>
-              <span class="tag">go</span>
-              <span class="tag">sqlite</span>
-              <span class="tag">frontend</span>
+        <main id="main-feed" class="main-content">
+          <section class="feed-header">
+            <div>
+              <h1>Dashboard</h1>
+              <p>Signed in as <strong id="current-user-nickname"></strong></p>
             </div>
+            <button id="logout-btn" class="btn btn-sm" type="button">Sign out</button>
           </section>
 
-          <section id="messages" class="chat-layout">
-            <section class="chat-users">
-              <span class="section-label">Messages</span>
-              <h2>Private Messages</h2>
-              <div id="chat-users-list"></div>
+          <section id="create-post" class="panel">
+            <div class="panel-header">
+              <h2>New post</h2>
+            </div>
+
+            <form id="create-post-form" class="form compact-form">
+              <label>
+                Title
+                <input class="form-input" type="text" id="post-title" required>
+              </label>
+
+              <label>
+                Content
+                <textarea class="form-input" id="post-content" rows="5" required></textarea>
+              </label>
+
+              <label>
+                Categories
+                <input class="form-input" type="text" id="post-categories" placeholder="general, go, sqlite" required>
+              </label>
+
+              <div class="form-footer">
+                <button class="btn btn-primary" type="submit">Create post</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel feed-panel">
+            <div class="panel-header">
+              <h2>Posts</h2>
+              <span class="panel-meta">Recent activity</span>
+            </div>
+
+            <div id="posts-feed" class="post-list"></div>
+          </section>
+
+          <section id="comments-panel" class="panel comments-panel hidden">
+            <div class="panel-header">
+              <h2 id="comments-post-title">Comments</h2>
+              <button id="close-comments-btn" class="btn btn-sm" type="button">Close</button>
+            </div>
+
+            <div id="comments-list" class="timeline"></div>
+
+            <form id="create-comment-form" class="form comment-form">
+              <label>
+                Add comment
+                <textarea class="form-input" id="comment-content" rows="3" required></textarea>
+              </label>
+
+              <div class="form-footer">
+                <button class="btn btn-primary" type="submit">Comment</button>
+              </div>
+            </form>
+          </section>
+
+          <section id="messages" class="messages-layout">
+            <section class="panel chat-users">
+              <div class="panel-header">
+                <h2>Messages</h2>
+              </div>
+              <div id="chat-users-list" class="chat-user-list"></div>
             </section>
 
-            <section class="chat-box">
-              <h2 id="chat-title">Select a user</h2>
+            <section class="panel chat-box">
+              <div class="panel-header">
+                <h2 id="chat-title">Select a user</h2>
+              </div>
 
-              <div id="chat-messages">
+              <div id="chat-messages" class="chat-messages">
                 <p>Select a user to start chatting.</p>
               </div>
 
-              <form id="chat-form" class="form">
+              <form id="chat-form" class="form comment-form">
                 <label>
                   Message
-                  <textarea id="chat-input" rows="3" disabled required></textarea>
+                  <textarea class="form-input" id="chat-input" rows="3" disabled required></textarea>
                 </label>
 
-                <button type="submit" disabled>Send</button>
-              </form>
-            </section>
-          </section>
-
-          <section id="create-post" class="forum-layout">
-            <section class="card">
-              <span class="section-label">Create</span>
-              <h2>Create Post</h2>
-
-              <form id="create-post-form" class="form">
-                <label>
-                  Title
-                  <input type="text" id="post-title" required>
-                </label>
-
-                <label>
-                  Content
-                  <textarea id="post-content" rows="5" required></textarea>
-                </label>
-
-                <label>
-                  Categories
-                  <input type="text" id="post-categories" placeholder="Example: general, go, school" required>
-                </label>
-
-                <button type="submit">Create Post</button>
-              </form>
-            </section>
-
-            <section class="card">
-              <span class="section-label">Threads</span>
-              <h2>Feed</h2>
-              <div id="posts-feed"></div>
-
-              <section id="comments-panel" class="comments-panel hidden">
-                <div class="comments-header">
-                  <div>
-                    <span class="section-label">Thread</span>
-                    <h2 id="comments-post-title">Comments</h2>
-                  </div>
-                  <button id="close-comments-btn" type="button">Close</button>
+                <div class="form-footer">
+                  <button class="btn btn-primary" type="submit" disabled>Send</button>
                 </div>
-
-                <div id="comments-list"></div>
-
-                <form id="create-comment-form" class="form">
-                  <label>
-                    Add Comment
-                    <textarea id="comment-content" rows="3" required></textarea>
-                  </label>
-
-                  <button type="submit">Comment</button>
-                </form>
-              </section>
+              </form>
             </section>
           </section>
         </main>
 
-        <aside class="right-sidebar" aria-label="Forum sidebar">
-          <section id="profile" class="profile-mini">
-            <span class="section-label">Profile</span>
+        <aside class="right-rail" aria-label="Account summary">
+          <section id="profile" class="panel profile-mini">
             <div class="profile-row">
               <span class="avatar">ME</span>
               <div>
@@ -273,46 +271,25 @@
                 <span class="mono">session active</span>
               </div>
             </div>
-            <button id="logout-btn" type="button">Logout</button>
-            <div class="stat-grid">
-              <div><strong>Live</strong><span class="mono">presence</span></div>
-              <div><strong>10</strong><span class="mono">msg page</span></div>
-            </div>
           </section>
 
-          <section id="categories" class="trending-card">
-            <span class="section-label">Categories</span>
-            <h2>Suggested topics</h2>
-            <div class="trending-list">
-              <a class="category-chip" href="#main-feed"><span>#general</span><span class="mono">open</span></a>
-              <a class="category-chip" href="#main-feed"><span>#go</span><span class="mono">backend</span></a>
-              <a class="category-chip" href="#main-feed"><span>#sqlite</span><span class="mono">data</span></a>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Activity</h2>
             </div>
-          </section>
-
-          <section id="notifications" class="trending-card">
-            <span class="section-label">Notifications</span>
-            <h2>Activity</h2>
-            <div class="trending-list">
-              <div class="category-chip"><span>New replies appear in comments.</span><span class="mono">live</span></div>
-              <div class="category-chip"><span>Unread chats show a badge.</span><span class="mono">new</span></div>
+            <div class="activity-list">
+              <span class="activity-item">Live chat</span>
+              <span class="activity-item">Post reactions</span>
+              <span class="activity-item">Thread comments</span>
             </div>
           </section>
         </aside>
       </div>
-
-      <nav class="bottom-tabs" aria-label="Mobile tabs">
-        <a href="#main-feed"><span>H</span><span>Home</span></a>
-        <a href="#main-feed"><span>S</span><span>Search</span></a>
-        <a class="create-tab" href="#create-post"><span>+</span><span>Create</span></a>
-        <a href="#notifications"><span>N</span><span>Alerts</span></a>
-        <a href="#profile"><span>P</span><span>Profile</span></a>
-      </nav>
     </div>
 
     <p id="message" class="message-line" role="status" aria-live="polite"></p>
   </div>
 
-  <script src="/static/js/app.js?v=9"></script>
+  <script src="/static/js/app.js?v=10"></script>
 </body>
 </html>

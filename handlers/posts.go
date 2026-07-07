@@ -15,6 +15,10 @@ type createPostRequest struct {
 	Categories []string `json:"categories"`
 }
 
+type deletePostRequest struct {
+	PostID int `json:"post_id"`
+}
+
 type postResponse struct {
 	// This is the JSON shape used when sending one post back to the browser.
 	ID           int      `json:"id"`
@@ -41,9 +45,11 @@ func (app *App) PostsHandler(w http.ResponseWriter, r *http.Request) {
 		app.ListPostsHandler(w, r)
 	case http.MethodPost:
 		app.CreatePostHandler(w, r)
+	case http.MethodDelete:
+		app.DeletePostHandler(w, r)
 	default:
-		w.Header().Set("Allow", "GET, POST")
-		writeError(w, http.StatusMethodNotAllowed, "use GET to list posts or POST to create a post")
+		w.Header().Set("Allow", "GET, POST, DELETE")
+		writeError(w, http.StatusMethodNotAllowed, "use GET to list posts, POST to create a post, or DELETE to remove your post")
 	}
 }
 
@@ -206,6 +212,80 @@ func (app *App) ListPostsHandler(w http.ResponseWriter, r *http.Request) {
 	// writeJSON converts the Go response struct into JSON for the browser.
 	writeJSON(w, http.StatusOK, postsFeedResponse{
 		Posts: posts,
+	})
+}
+
+func (app *App) DeletePostHandler(w http.ResponseWriter, r *http.Request) {
+	user, err := app.GetCurrentUser(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "please log in to delete a post")
+		return
+	}
+
+	var req deletePostRequest
+
+	err = readJSON(w, r, &req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "request body must be valid JSON with post_id")
+		return
+	}
+
+	if req.PostID <= 0 {
+		writeError(w, http.StatusBadRequest, "post_id must be a positive number")
+		return
+	}
+
+	var ownerID int
+
+	err = app.DB.QueryRow(`
+		SELECT user_id
+		FROM posts
+		WHERE id = ?;
+	`, req.PostID).Scan(&ownerID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "post not found")
+			return
+		}
+
+		writeError(w, http.StatusInternalServerError, "could not check post ownership")
+		return
+	}
+
+	if ownerID != user.ID {
+		writeError(w, http.StatusForbidden, "you can only delete your own posts")
+		return
+	}
+
+	tx, err := app.DB.Begin()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not start deleting the post")
+		return
+	}
+
+	queries := []string{
+		`DELETE FROM comment_likes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ?);`,
+		`DELETE FROM comments WHERE post_id = ?;`,
+		`DELETE FROM post_likes WHERE post_id = ?;`,
+		`DELETE FROM post_categories WHERE post_id = ?;`,
+		`DELETE FROM posts WHERE id = ?;`,
+	}
+
+	for _, query := range queries {
+		if _, err := tx.Exec(query, req.PostID); err != nil {
+			tx.Rollback()
+			writeError(w, http.StatusInternalServerError, "could not delete the post")
+			return
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not finish deleting the post")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"message": "post deleted successfully",
 	})
 }
 
