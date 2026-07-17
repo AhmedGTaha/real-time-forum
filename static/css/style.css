@@ -225,7 +225,6 @@ small {
 .header-left,
 .header-right,
 .site-logo,
-.profile-row,
 .sidebar-heading-row,
 .post-row-title,
 .post-row-stats,
@@ -290,7 +289,7 @@ small {
 
 .dashboard-layout {
   display: grid;
-  grid-template-columns: 240px minmax(0, 880px) 280px;
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: 24px;
   min-height: calc(100vh - 48px);
 }
@@ -387,11 +386,7 @@ small {
 
 .main-content {
   min-width: 0;
-  padding: 24px 0 48px;
-}
-
-.right-rail {
-  padding: 24px 24px 0 0;
+  padding: 24px 24px 48px 0;
 }
 
 .feed-header {
@@ -546,6 +541,17 @@ textarea.form-input {
   background: color-mix(in srgb, var(--color-danger-bg) 72%, var(--color-danger));
 }
 
+.like-btn.liked {
+  border-color: color-mix(in srgb, var(--color-danger) 55%, var(--color-border));
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.like-btn.liked:hover {
+  border-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger-bg) 72%, var(--color-danger));
+}
+
 .post-list {
   overflow: hidden;
   border-radius: 0 0 var(--radius) var(--radius);
@@ -673,6 +679,12 @@ textarea.form-input {
 
 .comment-meta {
   padding: 0 12px 12px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.comment-card .comment-context {
+  padding-bottom: 0;
   color: var(--color-text-secondary);
   font-size: 12px;
 }
@@ -847,25 +859,6 @@ textarea.form-input {
   min-height: 74px;
 }
 
-.profile-mini {
-  padding: 12px;
-}
-
-.profile-row {
-  align-items: center;
-  gap: 10px;
-}
-
-.profile-row strong,
-.profile-row span {
-  display: block;
-}
-
-.profile-row .mono {
-  color: var(--color-text-secondary);
-  font-size: 12px;
-}
-
 .avatar {
   display: inline-flex;
   align-items: center;
@@ -881,25 +874,9 @@ textarea.form-input {
   text-align: center;
 }
 
-.profile-mini .avatar {
-  display: flex;
-  place-items: center;
-}
-
 .avatar-sm {
   width: 28px;
   height: 28px;
-  font-size: 12px;
-}
-
-.activity-list {
-  display: grid;
-  padding: 8px 0;
-}
-
-.activity-item {
-  padding: 7px 16px;
-  color: var(--color-text-secondary);
   font-size: 12px;
 }
 
@@ -1000,20 +977,6 @@ textarea.form-input {
     opacity: 1;
     transform: translateY(0);
     transition: opacity 180ms ease, transform 180ms ease;
-  }
-}
-
-@media (max-width: 1260px) {
-  .dashboard-layout {
-    grid-template-columns: 240px minmax(0, 1fr);
-  }
-
-  .right-rail {
-    display: none;
-  }
-
-  .main-content {
-    padding-right: 24px;
   }
 }
 

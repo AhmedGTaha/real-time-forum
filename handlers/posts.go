@@ -28,6 +28,7 @@ type postResponse struct {
 	Author       string   `json:"author"`
 	Categories   []string `json:"categories"`
 	LikeCount    int      `json:"like_count"`
+	Liked        bool     `json:"liked"`
 	CommentCount int      `json:"comment_count"`
 	CreatedAt    string   `json:"created_at"`
 }
@@ -140,13 +141,15 @@ func (app *App) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) ListPostsHandler(w http.ResponseWriter, r *http.Request) {
 	// Only logged-in users can load the posts feed.
-	_, err := app.GetCurrentUser(r)
+	user, err := app.GetCurrentUser(r)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, "please log in to view posts")
 		return
 	}
 
 	// This query loads posts plus their author, categories, likes, and comments.
+	// The MAX(CASE ...) column reports whether the current user liked each post,
+	// so the frontend can show a "Liked/Unlike" button state on load.
 	rows, err := app.DB.Query(`
 		SELECT
 			posts.id,
@@ -156,6 +159,7 @@ func (app *App) ListPostsHandler(w http.ResponseWriter, r *http.Request) {
 			users.nickname,
 			COALESCE(GROUP_CONCAT(DISTINCT categories.name), ''),
 			COUNT(DISTINCT post_likes.user_id),
+			COALESCE(MAX(CASE WHEN post_likes.user_id = ? THEN 1 ELSE 0 END), 0),
 			COUNT(DISTINCT comments.id),
 			posts.created_at
 		FROM posts
@@ -167,7 +171,7 @@ func (app *App) ListPostsHandler(w http.ResponseWriter, r *http.Request) {
 		GROUP BY posts.id
 		ORDER BY posts.created_at DESC
 		LIMIT 50;
-	`)
+	`, user.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load posts right now")
 		return
@@ -190,6 +194,7 @@ func (app *App) ListPostsHandler(w http.ResponseWriter, r *http.Request) {
 			&post.Author,
 			&categoriesText,
 			&post.LikeCount,
+			&post.Liked,
 			&post.CommentCount,
 			&post.CreatedAt,
 		)

@@ -131,11 +131,14 @@
         </div>
 
         <nav class="sidebar-nav">
-          <a class="nav-link active" href="#main-feed">Home</a>
+          <a class="nav-link active" href="#main-feed" data-view="home">Home</a>
           <a class="nav-link" href="#create-post">New post</a>
+          <a class="nav-link" href="#main-feed" data-view="my-posts">My posts</a>
+          <a class="nav-link" href="#main-feed" data-view="liked-posts">Liked posts</a>
+          <a class="nav-link" href="#main-feed" data-view="my-comments">My comments</a>
+          <a class="nav-link" href="#main-feed" data-view="liked-comments">Liked comments</a>
           <a class="nav-link" href="#messages">Messages</a>
           <a class="nav-link" href="#categories">Categories</a>
-          <a class="nav-link" href="#profile">Profile</a>
         </nav>
       </aside>
 
@@ -148,9 +151,11 @@
             </div>
 
             <nav class="sidebar-nav">
-              <a class="nav-link active" href="#main-feed">Home</a>
-              <a class="nav-link" href="#create-post">My posts</a>
-              <a class="nav-link" href="#main-feed">Liked posts</a>
+              <a class="nav-link active" href="#main-feed" data-view="home">Home</a>
+              <a class="nav-link" href="#main-feed" data-view="my-posts">My posts</a>
+              <a class="nav-link" href="#main-feed" data-view="liked-posts">Liked posts</a>
+              <a class="nav-link" href="#main-feed" data-view="my-comments">My comments</a>
+              <a class="nav-link" href="#main-feed" data-view="liked-comments">Liked comments</a>
               <a class="nav-link" href="#messages">Messages</a>
             </nav>
           </div>
@@ -204,7 +209,7 @@
 
           <section class="panel feed-panel">
             <div class="panel-header">
-              <h2>Posts</h2>
+              <h2 id="feed-title">Posts</h2>
               <span class="panel-meta">Recent activity</span>
             </div>
 
@@ -261,35 +266,12 @@
             </section>
           </section>
         </main>
-
-        <aside class="right-rail" aria-label="Account summary">
-          <section id="profile" class="panel profile-mini">
-            <div class="profile-row">
-              <span class="avatar">ME</span>
-              <div>
-                <strong>Your account</strong>
-                <span class="mono">session active</span>
-              </div>
-            </div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Activity</h2>
-            </div>
-            <div class="activity-list">
-              <span class="activity-item">Live chat</span>
-              <span class="activity-item">Post reactions</span>
-              <span class="activity-item">Thread comments</span>
-            </div>
-          </section>
-        </aside>
       </div>
     </div>
 
     <p id="message" class="message-line" role="status" aria-live="polite"></p>
   </div>
 
-  <script src="/static/js/app.js?v=10"></script>
+  <script src="/static/js/app.js?v=12"></script>
 </body>
 </html>

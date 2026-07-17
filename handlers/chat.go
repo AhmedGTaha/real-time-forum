@@ -102,8 +102,8 @@ func (app *App) ChatUsersHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Online status is part of the response already, but real presence is not
-		// implemented yet. For now every user is reported as offline.
+		// Online status comes from the websocket hub, which tracks who is
+		// currently connected.
 		user.Online = app.Hub.IsOnline(user.ID)
 		users = append(users, user)
 	}

@@ -14,6 +14,8 @@ const logoutBtn = document.getElementById("logout-btn");
 
 const createPostForm = document.getElementById("create-post-form");
 const postsFeed = document.getElementById("posts-feed");
+const feedTitle = document.getElementById("feed-title");
+const viewLinks = document.querySelectorAll("[data-view]");
 
 const commentsPanel = document.getElementById("comments-panel");
 const commentsPostTitle = document.getElementById("comments-post-title");
@@ -40,6 +42,8 @@ let selectedPostID = null;
 
 let currentUser = null;
 let currentPosts = [];
+let currentUserComments = [];
+let currentView = "home";
 let lastFocusedElement = null;
 let selectedChatUserID = null;
 let selectedChatUserOnline = false;
@@ -60,6 +64,8 @@ logoutBtn.addEventListener("click", handleLogout);
 
 createPostForm.addEventListener("submit", handleCreatePost);
 postsFeed.addEventListener("click", handlePostsFeedClick);
+
+viewLinks.forEach((link) => link.addEventListener("click", handleViewLinkClick));
 
 closeCommentsBtn.addEventListener("click", closeCommentsPanel);
 createCommentForm.addEventListener("submit", handleCreateComment);
@@ -209,14 +215,181 @@ async function loadPosts() {
     }
 
     currentPosts = Array.isArray(data.posts) ? data.posts : [];
-    renderPosts(filterPosts(currentPosts));
+
+    // Only paint the feed if a post view is active; comment views own it otherwise.
+    if (!isCommentView(currentView)) {
+      renderPosts(filterPosts(getViewPosts()));
+    }
   } catch (error) {
     postsFeed.innerHTML = "<p>Network error while loading posts.</p>";
     showMessage("Network error while loading posts", true);
   }
 }
 
+// Sidebar links carry a data-view. Switching view changes what the feed shows:
+// all posts, your posts, posts you liked, your comments, or comments you liked.
+const FEED_TITLES = {
+  "home": "Posts",
+  "my-posts": "My posts",
+  "liked-posts": "Liked posts",
+  "my-comments": "My comments",
+  "liked-comments": "Liked comments",
+};
+
+function isCommentView(view) {
+  return view === "my-comments" || view === "liked-comments";
+}
+
+function handleViewLinkClick(event) {
+  // Let the anchor still scroll to #main-feed; we only swap the feed contents.
+  selectView(event.currentTarget.dataset.view);
+}
+
+function selectView(view) {
+  currentView = view;
+
+  viewLinks.forEach((link) => {
+    link.classList.toggle("active", link.dataset.view === view);
+  });
+
+  if (feedTitle) {
+    feedTitle.textContent = FEED_TITLES[view] || "Posts";
+  }
+
+  loadFeed();
+}
+
+// loadFeed fetches whatever the active view needs and renders it.
+async function loadFeed() {
+  if (isCommentView(currentView)) {
+    await loadUserComments();
+  } else {
+    await loadPosts();
+  }
+}
+
+// renderCurrentView re-renders from cached data (used by search, no refetch).
+function renderCurrentView() {
+  if (isCommentView(currentView)) {
+    renderUserComments(filterUserComments(currentUserComments));
+  } else {
+    renderPosts(filterPosts(getViewPosts()));
+  }
+}
+
+// getViewPosts narrows the cached posts to the active post view.
+function getViewPosts() {
+  if (currentView === "liked-posts") {
+    return currentPosts.filter((post) => post.liked);
+  }
+
+  if (currentView === "my-posts") {
+    return currentPosts.filter((post) => Number(post.author_id) === getCurrentUserID());
+  }
+
+  return currentPosts;
+}
+
+async function loadUserComments() {
+  postsFeed.className = "timeline";
+  postsFeed.innerHTML = "<p>Loading comments...</p>";
+
+  const endpoint = currentView === "liked-comments"
+    ? "/api/comments/liked"
+    : "/api/comments/mine";
+
+  try {
+    const response = await fetch(endpoint);
+    const data = await readResponseJSON(response);
+
+    if (!response.ok) {
+      showMessage(data.error || "Failed to load comments", true);
+      postsFeed.innerHTML = "<p>Failed to load comments.</p>";
+      return;
+    }
+
+    currentUserComments = Array.isArray(data.comments) ? data.comments : [];
+    renderUserComments(filterUserComments(currentUserComments));
+  } catch (error) {
+    postsFeed.innerHTML = "<p>Network error while loading comments.</p>";
+    showMessage("Network error while loading comments", true);
+  }
+}
+
+function filterUserComments(comments) {
+  const query = headerSearch?.value.trim().toLowerCase() || "";
+
+  if (!query) {
+    return comments;
+  }
+
+  return comments.filter((comment) => {
+    const searchableText = `${comment.content} ${comment.author} ${comment.post_title}`.toLowerCase();
+    return searchableText.includes(query);
+  });
+}
+
+function renderUserComments(comments) {
+  postsFeed.className = "timeline";
+  postsFeed.innerHTML = "";
+
+  if (!comments || comments.length === 0) {
+    postsFeed.innerHTML = '<p class="empty-state">No comments to show.</p>';
+    return;
+  }
+
+  comments.forEach((comment) => {
+    const commentElement = document.createElement("article");
+    commentElement.className = "comment-card reveal";
+
+    const canDeleteComment = Number(comment.author_id) === getCurrentUserID();
+    const deleteCommentButton = canDeleteComment
+      ? `
+        <button
+          class="delete-btn delete-comment-btn"
+          type="button"
+          data-comment-id="${comment.id}"
+        >
+          Delete
+        </button>
+      `
+      : "";
+
+    commentElement.innerHTML = `
+      <div class="comment-header">
+        <strong>${escapeHTML(comment.author)}</strong>
+        <span class="mono">${escapeHTML(comment.created_at)}</span>
+      </div>
+
+      <p class="comment-context">
+        on
+        <a class="post-title-link" href="#comments-panel" data-post-id="${comment.post_id}" data-post-title="${escapeHTML(comment.post_title)}">
+          ${escapeHTML(comment.post_title)}
+        </a>
+      </p>
+
+      <p>${escapeHTML(comment.content)}</p>
+
+      <div class="comment-meta">
+        <span>${Number(comment.like_count) || 0} likes</span>
+        <button
+          class="like-btn comment-like-btn${comment.liked ? " liked" : ""}"
+          type="button"
+          data-comment-id="${comment.id}"
+        >
+          ${comment.liked ? "Unlike" : "Like"}
+        </button>
+        ${deleteCommentButton}
+      </div>
+    `;
+
+    postsFeed.appendChild(commentElement);
+    observeRevealElement(commentElement);
+  });
+}
+
 function renderPosts(posts) {
+  postsFeed.className = "post-list";
   postsFeed.innerHTML = "";
 
   if (!posts || posts.length === 0) {
@@ -266,11 +439,11 @@ function renderPosts(posts) {
 
         <div class="post-actions">
           <button
-            class="like-btn post-like-btn"
+            class="like-btn post-like-btn${post.liked ? " liked" : ""}"
             type="button"
             data-post-id="${post.id}"
           >
-            Like
+            ${post.liked ? "Unlike" : "Like"}
           </button>
           <button
             class="view-comments-btn"
@@ -296,7 +469,7 @@ function renderPosts(posts) {
 }
 
 function handlePostSearch() {
-  renderPosts(filterPosts(currentPosts));
+  renderCurrentView();
 }
 
 function filterPosts(posts) {
@@ -339,6 +512,36 @@ function handlePostsFeedClick(event) {
     }
 
     togglePostLike(postID);
+    return;
+  }
+
+  // The comment views (My comments / Liked comments) render comment cards into
+  // this same feed, so handle their like/delete buttons here too.
+  const deleteCommentButton = event.target.closest(".delete-comment-btn");
+
+  if (deleteCommentButton) {
+    const commentID = Number(deleteCommentButton.dataset.commentId);
+
+    if (!commentID) {
+      showMessage("Invalid comment selected", true);
+      return;
+    }
+
+    deleteComment(commentID);
+    return;
+  }
+
+  const commentLikeButton = event.target.closest(".comment-like-btn");
+
+  if (commentLikeButton) {
+    const commentID = Number(commentLikeButton.dataset.commentId);
+
+    if (!commentID) {
+      showMessage("Invalid comment selected", true);
+      return;
+    }
+
+    toggleCommentLike(commentID);
     return;
   }
 
@@ -539,7 +742,7 @@ function showUserView(user) {
 
   clearMessage();
 
-  loadPosts();
+  selectView("home");
   loadChatUsers();
   connectChatSocket();
 }
@@ -657,6 +860,10 @@ async function deleteComment(commentID) {
     await loadComments(selectedPostID);
   }
 
+  if (isCommentView(currentView)) {
+    await loadUserComments();
+  }
+
   await loadPosts();
 }
 
@@ -672,6 +879,10 @@ async function toggleCommentLike(commentID) {
 
   if (selectedPostID) {
     await loadComments(selectedPostID);
+  }
+
+  if (isCommentView(currentView)) {
+    await loadUserComments();
   }
 }
 
@@ -1134,22 +1345,7 @@ function updateChatInputState() {
 }
 
 function updateProfileSummary(user) {
-  const profileName = document.querySelector(".profile-mini .profile-row strong");
-  const profileHandle = document.querySelector(".profile-mini .profile-row .mono");
-  const profileAvatar = document.querySelector(".profile-mini .avatar");
   const headerAvatar = document.getElementById("header-avatar");
-
-  if (profileName) {
-    profileName.textContent = user.nickname;
-  }
-
-  if (profileHandle) {
-    profileHandle.textContent = `@${user.nickname}`;
-  }
-
-  if (profileAvatar) {
-    profileAvatar.textContent = initials(user.nickname);
-  }
 
   if (headerAvatar) {
     headerAvatar.textContent = initials(user.nickname);
