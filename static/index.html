@@ -138,6 +138,7 @@
           <a class="nav-link" href="#main-feed" data-view="my-comments">My comments</a>
           <a class="nav-link" href="#main-feed" data-view="liked-comments">Liked comments</a>
           <a class="nav-link" href="#messages">Messages</a>
+          <a class="nav-link admin-link admin-only hidden" href="#admin-panel">Admin</a>
           <a class="nav-link" href="#categories">Categories</a>
         </nav>
       </aside>
@@ -157,6 +158,7 @@
               <a class="nav-link" href="#main-feed" data-view="my-comments">My comments</a>
               <a class="nav-link" href="#main-feed" data-view="liked-comments">Liked comments</a>
               <a class="nav-link" href="#messages">Messages</a>
+              <a class="nav-link admin-link admin-only hidden" href="#admin-panel">Admin</a>
             </nav>
           </div>
 
@@ -178,6 +180,28 @@
               <p>Signed in as <strong id="current-user-nickname"></strong></p>
             </div>
             <button id="logout-btn" class="btn btn-sm" type="button">Sign out</button>
+          </section>
+
+          <section id="admin-panel" class="panel admin-panel hidden">
+            <div class="panel-header">
+              <h2>Admin</h2>
+              <button id="admin-refresh-btn" class="btn btn-sm" type="button">Refresh</button>
+            </div>
+
+            <div class="admin-group">
+              <h3 class="admin-heading">Accounts</h3>
+              <div id="admin-users" class="admin-list"></div>
+            </div>
+
+            <div class="admin-group">
+              <h3 class="admin-heading">Posts</h3>
+              <div id="admin-posts" class="admin-list"></div>
+            </div>
+
+            <div class="admin-group">
+              <h3 class="admin-heading">Comments</h3>
+              <div id="admin-comments" class="admin-list"></div>
+            </div>
           </section>
 
           <section id="create-post" class="panel">
@@ -272,6 +296,6 @@
     <p id="message" class="message-line" role="status" aria-live="polite"></p>
   </div>
 
-  <script src="/static/js/app.js?v=12"></script>
+  <script src="/static/js/app.js?v=13"></script>
 </body>
 </html>

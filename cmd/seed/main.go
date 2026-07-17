@@ -26,8 +26,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// seedPassword is shared by every seeded account for easy manual testing.
+// seedPassword is shared by every seeded (non-admin) account for easy testing.
 const seedPassword = "password123"
+
+// Admin account credentials.
+const (
+	adminNickname = "ahmed"
+	adminPassword = "ahmed"
+)
 
 type seedUser struct {
 	Nickname  string
@@ -75,6 +81,12 @@ func main() {
 
 	log.Printf("ensured %d users (password for all: %q)", len(users), seedPassword)
 
+	// Seed the admin account. Its password is intentionally different.
+	if err := ensureAdmin(db); err != nil {
+		log.Fatalf("seed admin: %v", err)
+	}
+	log.Printf("ensured admin account (nickname: %q, password: %q)", adminNickname, adminPassword)
+
 	// Only seed content once, so re-running does not pile up duplicate posts.
 	var postCount int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM posts;`).Scan(&postCount); err != nil {
@@ -114,6 +126,34 @@ func getOrCreateUser(db *sql.DB, u seedUser, passwordHash string) (int64, error)
 	}
 
 	return result.LastInsertId()
+}
+
+// ensureAdmin creates the admin account if it does not exist, or promotes and
+// resets the password of an existing account with the same nickname.
+func ensureAdmin(db *sql.DB) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	var id int64
+	err = db.QueryRow(`SELECT id FROM users WHERE nickname = ?;`, adminNickname).Scan(&id)
+	if err == sql.ErrNoRows {
+		_, err = db.Exec(`
+			INSERT INTO users (nickname, age, gender, first_name, last_name, email, password_hash, is_admin)
+			VALUES (?, ?, ?, ?, ?, ?, ?, 1);
+		`, adminNickname, 30, "male", "Ahmed", "Admin", "ahmed@example.com", string(hash))
+		return err
+	}
+	if err != nil {
+		return err
+	}
+
+	// Already exists: make sure it is an admin with the expected password.
+	_, err = db.Exec(`
+		UPDATE users SET is_admin = 1, password_hash = ? WHERE id = ?;
+	`, string(hash), id)
+	return err
 }
 
 // seedContent inserts posts (with categories), comments, likes, and chat

@@ -40,6 +40,7 @@ func CreateTables(db *sql.DB) error {
 			last_name TEXT NOT NULL,
 			email TEXT NOT NULL UNIQUE COLLATE NOCASE,
 			password_hash TEXT NOT NULL,
+			is_admin INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);
 		`,
@@ -151,10 +152,55 @@ func CreateTables(db *sql.DB) error {
 		}
 	}
 
+	// Databases created before roles existed are missing the is_admin column,
+	// so add it here rather than forcing users to recreate their database.
+	if err := ensureColumn(tx, "users", "is_admin", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("migrate users table: %w", err)
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		return fmt.Errorf("commit schema transaction: %w", err)
 	}
 
 	return nil
+}
+
+// ensureColumn adds a column to a table only when it does not already exist,
+// making schema changes safe to run against existing databases.
+func ensureColumn(tx *sql.Tx, table, column, definition string) error {
+	rows, err := tx.Query(fmt.Sprintf("PRAGMA table_info(%s);", table))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	exists := false
+	for rows.Next() {
+		var (
+			cid       int
+			name      string
+			ctype     string
+			notNull   int
+			dfltValue sql.NullString
+			pk        int
+		)
+		if err := rows.Scan(&cid, &name, &ctype, &notNull, &dfltValue, &pk); err != nil {
+			return err
+		}
+		if name == column {
+			exists = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	if exists {
+		return nil
+	}
+
+	_, err = tx.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s;", table, column, definition))
+	return err
 }

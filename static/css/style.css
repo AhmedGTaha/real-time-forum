@@ -689,6 +689,68 @@ textarea.form-input {
   font-size: 12px;
 }
 
+.admin-group {
+  padding: 4px 0 8px;
+}
+
+.admin-group + .admin-group {
+  border-top: 1px solid var(--color-border);
+  margin-top: 8px;
+}
+
+.admin-heading {
+  margin: 0;
+  padding: 12px 16px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+}
+
+.admin-list {
+  display: grid;
+  gap: 8px;
+  padding: 0 16px 4px;
+}
+
+.admin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+
+.admin-row-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-row-title {
+  font-weight: 600;
+}
+
+.admin-row-text,
+.admin-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-row-meta {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.admin-row .delete-btn {
+  flex: 0 0 auto;
+}
+
 .messages-layout {
   display: grid;
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);

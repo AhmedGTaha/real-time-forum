@@ -17,6 +17,14 @@ const postsFeed = document.getElementById("posts-feed");
 const feedTitle = document.getElementById("feed-title");
 const viewLinks = document.querySelectorAll("[data-view]");
 
+const adminPanel = document.getElementById("admin-panel");
+const adminUsersList = document.getElementById("admin-users");
+const adminPostsList = document.getElementById("admin-posts");
+const adminCommentsList = document.getElementById("admin-comments");
+const adminRefreshBtn = document.getElementById("admin-refresh-btn");
+const adminLinks = document.querySelectorAll(".admin-link");
+const adminOnlyElements = document.querySelectorAll(".admin-only");
+
 const commentsPanel = document.getElementById("comments-panel");
 const commentsPostTitle = document.getElementById("comments-post-title");
 const closeCommentsBtn = document.getElementById("close-comments-btn");
@@ -66,6 +74,10 @@ createPostForm.addEventListener("submit", handleCreatePost);
 postsFeed.addEventListener("click", handlePostsFeedClick);
 
 viewLinks.forEach((link) => link.addEventListener("click", handleViewLinkClick));
+
+adminLinks.forEach((link) => link.addEventListener("click", handleAdminLinkClick));
+adminRefreshBtn?.addEventListener("click", loadAdminOverview);
+adminPanel?.addEventListener("click", handleAdminPanelClick);
 
 closeCommentsBtn.addEventListener("click", closeCommentsPanel);
 createCommentForm.addEventListener("submit", handleCreateComment);
@@ -736,6 +748,7 @@ function showUserView(user) {
   authStatus.textContent = "Session active.";
   currentUserNickname.textContent = user.nickname;
   updateProfileSummary(user);
+  updateAdminVisibility(user);
 
   guestView.classList.add("hidden");
   userView.classList.remove("hidden");
@@ -1350,6 +1363,238 @@ function updateProfileSummary(user) {
   if (headerAvatar) {
     headerAvatar.textContent = initials(user.nickname);
   }
+}
+
+// --- admin ----------------------------------------------------------------
+
+function updateAdminVisibility(user) {
+  const isAdmin = Boolean(user?.is_admin);
+
+  adminOnlyElements.forEach((element) => {
+    element.classList.toggle("hidden", !isAdmin);
+  });
+
+  if (!isAdmin && adminPanel) {
+    adminPanel.classList.add("hidden");
+  }
+}
+
+function handleAdminLinkClick() {
+  // The anchor still scrolls to #admin-panel; we reveal and load it here.
+  if (adminPanel) {
+    adminPanel.classList.remove("hidden");
+  }
+
+  loadAdminOverview();
+}
+
+async function loadAdminOverview() {
+  if (!adminPanel) {
+    return;
+  }
+
+  adminUsersList.innerHTML = "<p>Loading...</p>";
+  adminPostsList.innerHTML = "<p>Loading...</p>";
+  adminCommentsList.innerHTML = "<p>Loading...</p>";
+
+  try {
+    const response = await fetch("/api/admin/overview");
+    const data = await readResponseJSON(response);
+
+    if (!response.ok) {
+      showMessage(data.error || "Failed to load admin data", true);
+      adminUsersList.innerHTML = "<p>Failed to load.</p>";
+      adminPostsList.innerHTML = "";
+      adminCommentsList.innerHTML = "";
+      return;
+    }
+
+    renderAdminUsers(data.users);
+    renderAdminPosts(data.posts);
+    renderAdminComments(data.comments);
+  } catch (error) {
+    showMessage("Network error while loading admin data", true);
+  }
+}
+
+function renderAdminUsers(users) {
+  adminUsersList.innerHTML = "";
+
+  if (!users || users.length === 0) {
+    adminUsersList.innerHTML = '<p class="empty-state">No accounts.</p>';
+    return;
+  }
+
+  users.forEach((user) => {
+    const row = document.createElement("div");
+    row.className = "admin-row";
+
+    const adminBadge = user.is_admin ? '<span class="badge">admin</span>' : "";
+
+    // Admin accounts (including your own) have no delete button, to avoid lockout.
+    const deleteButton = user.is_admin
+      ? ""
+      : `<button class="delete-btn admin-delete-user-btn" type="button" data-user-id="${user.id}">Delete</button>`;
+
+    row.innerHTML = `
+      <div class="admin-row-main">
+        <span class="admin-row-title">${escapeHTML(user.nickname)} ${adminBadge}</span>
+        <span class="admin-row-meta">${escapeHTML(user.email)} · ${Number(user.post_count) || 0} posts · ${Number(user.comment_count) || 0} comments</span>
+      </div>
+      ${deleteButton}
+    `;
+
+    adminUsersList.appendChild(row);
+  });
+}
+
+function renderAdminPosts(posts) {
+  adminPostsList.innerHTML = "";
+
+  if (!posts || posts.length === 0) {
+    adminPostsList.innerHTML = '<p class="empty-state">No posts.</p>';
+    return;
+  }
+
+  posts.forEach((post) => {
+    const row = document.createElement("div");
+    row.className = "admin-row";
+
+    row.innerHTML = `
+      <div class="admin-row-main">
+        <span class="admin-row-title">${escapeHTML(post.title)}</span>
+        <span class="admin-row-meta">by ${escapeHTML(post.author)} · ${Number(post.like_count) || 0} likes · ${Number(post.comment_count) || 0} comments · ${escapeHTML(post.created_at)}</span>
+      </div>
+      <button class="delete-btn admin-delete-post-btn" type="button" data-post-id="${post.id}">Delete</button>
+    `;
+
+    adminPostsList.appendChild(row);
+  });
+}
+
+function renderAdminComments(comments) {
+  adminCommentsList.innerHTML = "";
+
+  if (!comments || comments.length === 0) {
+    adminCommentsList.innerHTML = '<p class="empty-state">No comments.</p>';
+    return;
+  }
+
+  comments.forEach((comment) => {
+    const row = document.createElement("div");
+    row.className = "admin-row";
+
+    row.innerHTML = `
+      <div class="admin-row-main">
+        <span class="admin-row-text">${escapeHTML(comment.content)}</span>
+        <span class="admin-row-meta">by ${escapeHTML(comment.author)} on "${escapeHTML(comment.post_title)}" · ${escapeHTML(comment.created_at)}</span>
+      </div>
+      <button class="delete-btn admin-delete-comment-btn" type="button" data-comment-id="${comment.id}">Delete</button>
+    `;
+
+    adminCommentsList.appendChild(row);
+  });
+}
+
+function handleAdminPanelClick(event) {
+  const userButton = event.target.closest(".admin-delete-user-btn");
+  if (userButton) {
+    deleteAdminUser(Number(userButton.dataset.userId));
+    return;
+  }
+
+  const postButton = event.target.closest(".admin-delete-post-btn");
+  if (postButton) {
+    deleteAdminPost(Number(postButton.dataset.postId));
+    return;
+  }
+
+  const commentButton = event.target.closest(".admin-delete-comment-btn");
+  if (commentButton) {
+    deleteAdminComment(Number(commentButton.dataset.commentId));
+  }
+}
+
+async function deleteAdminUser(userID) {
+  if (!userID) {
+    return;
+  }
+
+  if (!confirm("Delete this account and all of its posts, comments, and likes?")) {
+    return;
+  }
+
+  const result = await sendJSONRequest("/api/admin/users", "DELETE", {
+    user_id: userID,
+  });
+
+  if (!result.ok) {
+    showMessage(result.data.error || "Failed to delete account", true);
+    return;
+  }
+
+  showMessage(result.data.message || "Account deleted successfully", false);
+
+  await loadAdminOverview();
+  await loadFeed();
+  loadChatUsers();
+}
+
+async function deleteAdminPost(postID) {
+  if (!postID) {
+    return;
+  }
+
+  if (!confirm("Delete this post?")) {
+    return;
+  }
+
+  const result = await sendJSONRequest("/api/admin/posts", "DELETE", {
+    post_id: postID,
+  });
+
+  if (!result.ok) {
+    showMessage(result.data.error || "Failed to delete post", true);
+    return;
+  }
+
+  showMessage(result.data.message || "Post deleted successfully", false);
+
+  if (selectedPostID === postID) {
+    closeCommentsPanel();
+  }
+
+  await loadAdminOverview();
+  await loadFeed();
+}
+
+async function deleteAdminComment(commentID) {
+  if (!commentID) {
+    return;
+  }
+
+  if (!confirm("Delete this comment?")) {
+    return;
+  }
+
+  const result = await sendJSONRequest("/api/admin/comments", "DELETE", {
+    comment_id: commentID,
+  });
+
+  if (!result.ok) {
+    showMessage(result.data.error || "Failed to delete comment", true);
+    return;
+  }
+
+  showMessage(result.data.message || "Comment deleted successfully", false);
+
+  await loadAdminOverview();
+
+  if (selectedPostID) {
+    await loadComments(selectedPostID);
+  }
+
+  await loadFeed();
 }
 
 function setupTheme() {

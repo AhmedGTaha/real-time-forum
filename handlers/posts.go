@@ -268,20 +268,10 @@ func (app *App) DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	queries := []string{
-		`DELETE FROM comment_likes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ?);`,
-		`DELETE FROM comments WHERE post_id = ?;`,
-		`DELETE FROM post_likes WHERE post_id = ?;`,
-		`DELETE FROM post_categories WHERE post_id = ?;`,
-		`DELETE FROM posts WHERE id = ?;`,
-	}
-
-	for _, query := range queries {
-		if _, err := tx.Exec(query, req.PostID); err != nil {
-			tx.Rollback()
-			writeError(w, http.StatusInternalServerError, "could not delete the post")
-			return
-		}
+	if err := deletePostAndChildren(tx, req.PostID); err != nil {
+		tx.Rollback()
+		writeError(w, http.StatusInternalServerError, "could not delete the post")
+		return
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -292,6 +282,27 @@ func (app *App) DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"message": "post deleted successfully",
 	})
+}
+
+// deletePostAndChildren removes a post together with every row that references
+// it (comment likes, comments, post likes, category links). The FK cascade is
+// not relied on because foreign_keys enforcement is per-connection in SQLite.
+func deletePostAndChildren(tx *sql.Tx, postID int) error {
+	queries := []string{
+		`DELETE FROM comment_likes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ?);`,
+		`DELETE FROM comments WHERE post_id = ?;`,
+		`DELETE FROM post_likes WHERE post_id = ?;`,
+		`DELETE FROM post_categories WHERE post_id = ?;`,
+		`DELETE FROM posts WHERE id = ?;`,
+	}
+
+	for _, query := range queries {
+		if _, err := tx.Exec(query, postID); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (req *createPostRequest) clean() {

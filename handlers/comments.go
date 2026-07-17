@@ -227,13 +227,12 @@ func (app *App) DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var ownerID int
-	var postID int
 
 	err = app.DB.QueryRow(`
-		SELECT user_id, post_id
+		SELECT user_id
 		FROM comments
 		WHERE id = ?;
-	`, req.CommentID).Scan(&ownerID, &postID)
+	`, req.CommentID).Scan(&ownerID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "comment not found")
@@ -255,21 +254,7 @@ func (app *App) DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = tx.Exec(`
-		DELETE FROM comment_likes
-		WHERE comment_id = ?;
-	`, req.CommentID)
-	if err != nil {
-		tx.Rollback()
-		writeError(w, http.StatusInternalServerError, "could not delete the comment")
-		return
-	}
-
-	_, err = tx.Exec(`
-		DELETE FROM comments
-		WHERE id = ? AND post_id = ?;
-	`, req.CommentID, postID)
-	if err != nil {
+	if err := deleteCommentAndChildren(tx, req.CommentID); err != nil {
 		tx.Rollback()
 		writeError(w, http.StatusInternalServerError, "could not delete the comment")
 		return
@@ -283,6 +268,19 @@ func (app *App) DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"message": "comment deleted successfully",
 	})
+}
+
+// deleteCommentAndChildren removes a comment and the likes attached to it.
+func deleteCommentAndChildren(tx *sql.Tx, commentID int) error {
+	if _, err := tx.Exec(`DELETE FROM comment_likes WHERE comment_id = ?;`, commentID); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(`DELETE FROM comments WHERE id = ?;`, commentID); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (req *createCommentRequest) clean() {

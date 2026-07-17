@@ -14,6 +14,7 @@ type currentUser struct {
 	Email     string `json:"email"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
+	IsAdmin   bool   `json:"is_admin"`
 }
 
 // meResponse is the JSON shape the browser receives when it asks for the current user.
@@ -58,12 +59,13 @@ func (app *App) GetCurrentUser(r *http.Request) (currentUser, error) {
 
 	// This finds the session and the user connected to it.
 	err = app.DB.QueryRow(`
-		SELECT 
+		SELECT
 			users.id,
 			users.nickname,
 			users.email,
 			users.first_name,
 			users.last_name,
+			users.is_admin,
 			sessions.expires_at
 		FROM sessions
 		INNER JOIN users ON users.id = sessions.user_id
@@ -75,6 +77,7 @@ func (app *App) GetCurrentUser(r *http.Request) (currentUser, error) {
 		&user.Email,
 		&user.FirstName,
 		&user.LastName,
+		&user.IsAdmin,
 		&expiresAt,
 	)
 	if err != nil {
