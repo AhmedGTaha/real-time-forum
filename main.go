@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"real-time-forum/database"
 	"real-time-forum/handlers"
@@ -44,9 +45,14 @@ func main() {
 	fileServer := http.FileServer(http.Dir("static"))
 	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
 
-	log.Println("Server started on http://localhost:8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	err = http.ListenAndServe(":8080", mux)
+	log.Printf("Server started on http://localhost:%s", port)
+
+	err = http.ListenAndServe(":"+port, mux)
 	if err != nil {
 		log.Fatal("server error:", err)
 	}

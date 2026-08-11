@@ -3,12 +3,24 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"os"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
 func OpenDB(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", path)
+	databaseURL := os.Getenv("TURSO_DATABASE_URL")
+	if databaseURL == "" {
+		return nil, fmt.Errorf("TURSO_DATABASE_URL environment variable is required")
+	}
+
+	authToken := os.Getenv("TURSO_AUTH_TOKEN")
+	if authToken == "" {
+		return nil, fmt.Errorf("TURSO_AUTH_TOKEN environment variable is required")
+	}
+
+	connectionURL := databaseURL + "?authToken=" + authToken
+	db, err := sql.Open("libsql", connectionURL)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
@@ -17,12 +29,6 @@ func OpenDB(path string) (*sql.DB, error) {
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
-	}
-
-	_, err = db.Exec("PRAGMA foreign_keys = ON;")
-	if err != nil {
-		db.Close()
-		return nil, fmt.Errorf("enable foreign keys: %w", err)
 	}
 
 	return db, nil

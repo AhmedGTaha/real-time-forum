@@ -1,0 +1,17 @@
+.git
+.github
+.gitignore
+.DS_Store
+.idea
+.vscode
+
+.env
+.env.*
+*.db
+*.db-*
+cookies.txt
+
+README.md
+*.log
+coverage.out
+bin/
