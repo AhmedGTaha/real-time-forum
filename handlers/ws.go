@@ -1,19 +1,24 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 const maxChatMessageLength = 1000
 
 type Client struct {
-	app  *App
-	user currentUser
-	conn *websocket.Conn
-	send chan wsOutgoingMessage
+	app            *App
+	user           currentUser
+	conn           *websocket.Conn
+	send           chan wsOutgoingMessage
+	connectionID   string
+	presenceCancel context.CancelFunc
+	presenceDone   <-chan struct{}
 }
 
 type wsIncomingMessage struct {
@@ -55,13 +60,21 @@ func (app *App) ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &Client{
-		app:  app,
-		user: user,
-		conn: conn,
-		send: make(chan wsOutgoingMessage, 16),
+		app:          app,
+		user:         user,
+		conn:         conn,
+		send:         make(chan wsOutgoingMessage, 16),
+		connectionID: uuid.NewString(),
 	}
 
-	app.Hub.AddClient(client)
+	if err := app.Hub.AddClient(client); err != nil {
+		conn.WriteJSON(wsOutgoingMessage{
+			Type:  "error",
+			Error: "chat service is unavailable",
+		})
+		conn.Close()
+		return
+	}
 
 	go client.writePump()
 	client.readPump()
@@ -159,8 +172,9 @@ func (client *Client) handlePrivateMessage(incoming wsIncomingMessage) {
 		Message: &message,
 	}
 
-	client.app.Hub.SendToUser(client.user.ID, outgoing)
-	client.app.Hub.SendToUser(incoming.ReceiverID, outgoing)
+	if err := client.app.Hub.Publish(outgoing); err != nil {
+		client.sendError("failed to deliver message")
+	}
 }
 
 func (client *Client) sendError(message string) {

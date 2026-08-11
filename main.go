@@ -25,7 +25,11 @@ func main() {
 
 	log.Println("Database tables ready")
 
-	app := handlers.NewApp(db)
+	app, err := handlers.NewApp(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer app.Close()
 
 	mux := http.NewServeMux()
 

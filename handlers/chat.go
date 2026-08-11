@@ -102,8 +102,7 @@ func (app *App) ChatUsersHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Online status comes from the websocket hub, which tracks who is
-		// currently connected.
+		// Online status comes from Redis-backed presence across every app instance.
 		user.Online = app.Hub.IsOnline(user.ID)
 		users = append(users, user)
 	}
