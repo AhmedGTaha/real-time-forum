@@ -8,6 +8,8 @@ The entire frontend is one HTML page driven by JavaScript — navigation, feeds,
 the post composer, the profile views, and the chat panel are all rendered
 client-side without a page reload.
 
+**Live deployment:** [real-time-forum-lac.vercel.app](https://real-time-forum-lac.vercel.app/)
+
 ## Features
 
 - **Authentication** — register with nickname, age, gender, first/last name,
