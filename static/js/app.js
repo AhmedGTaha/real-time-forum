@@ -24,6 +24,7 @@ const adminCommentsList = document.getElementById("admin-comments");
 const adminRefreshBtn = document.getElementById("admin-refresh-btn");
 const adminLinks = document.querySelectorAll(".admin-link");
 const adminOnlyElements = document.querySelectorAll(".admin-only");
+const nonAdminNavigationLinks = document.querySelectorAll('a[href^="#"]:not(.admin-link)');
 
 const commentsPanel = document.getElementById("comments-panel");
 const commentsPostTitle = document.getElementById("comments-post-title");
@@ -76,8 +77,10 @@ postsFeed.addEventListener("click", handlePostsFeedClick);
 viewLinks.forEach((link) => link.addEventListener("click", handleViewLinkClick));
 
 adminLinks.forEach((link) => link.addEventListener("click", handleAdminLinkClick));
+nonAdminNavigationLinks.forEach((link) => link.addEventListener("click", hideAdminPanel));
 adminRefreshBtn?.addEventListener("click", loadAdminOverview);
 adminPanel?.addEventListener("click", handleAdminPanelClick);
+window.addEventListener("hashchange", handleAdminHashChange);
 
 closeCommentsBtn.addEventListener("click", closeCommentsPanel);
 createCommentForm.addEventListener("submit", handleCreateComment);
@@ -1376,6 +1379,21 @@ function updateAdminVisibility(user) {
 
   if (!isAdmin && adminPanel) {
     adminPanel.classList.add("hidden");
+  }
+}
+
+function hideAdminPanel() {
+  adminPanel?.classList.add("hidden");
+}
+
+function handleAdminHashChange() {
+  if (window.location.hash !== "#admin-panel") {
+    hideAdminPanel();
+    return;
+  }
+
+  if (adminPanel?.classList.contains("hidden")) {
+    handleAdminLinkClick();
   }
 }
 
